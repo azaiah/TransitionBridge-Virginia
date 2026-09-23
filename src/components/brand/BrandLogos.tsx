@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
  * The two brand marks, in one place so every screen uses them the same way.
  *
  * - BridgeLogo: the IEP Partners bridge — TransitionBridge's product logo.
- * - PresentedBy: "Presented by DataIsData" with the small DataIsData icon.
+ * - PresentedBy: footer credit for the product owner (IEP Partners, LLC).
+ *   The corner "Powered by DataIsData" badge is separate — see PoweredByBadge.tsx.
  *
  * Both images are generated from the original artwork by `npm run assets`.
  * Change log: replaces the simplified SVG bridge that was used as a placeholder.
@@ -41,19 +42,15 @@ export function BridgeLogo({
   );
 }
 
-/**
- * "Presented by DataIsData" with the icon.
- * The icon is light silver artwork, so it sits on a small navy tile — on the white
- * footer it would otherwise be almost invisible.
- */
+/** Footer line: who presents the TransitionBridge product (distinct from "Powered by DataIsData"). */
 export function PresentedBy({ className }: { className?: string }) {
   return (
     <span className={cn('inline-flex items-center gap-2 text-caption text-ink-2', className)}>
       Presented by
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-navy" aria-hidden="true">
-        <Image src="/brand/dataisdata-icon.png" alt="" width={95} height={96} className="h-4 w-4" />
+      <span aria-hidden="true">
+        <BridgeLogo className="h-5" />
       </span>
-      <span className="font-semibold text-ink">DataIsData</span>
+      <span className="font-semibold text-ink">IEP Partners, LLC</span>
     </span>
   );
 }

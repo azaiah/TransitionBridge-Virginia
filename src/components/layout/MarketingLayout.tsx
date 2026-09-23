@@ -79,7 +79,7 @@ export function MarketingLayout({ children }: { children: ReactNode }) {
                 </Link>
               </nav>
             </div>
-            {/* Footer credit: "Presented by DataIsData" (replaces the earlier IEP Partners, LLC line). */}
+            {/* Product owner in the footer; builder credit is the Powered by DataIsData corner badge. */}
             <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
               <PresentedBy />
               <p className="text-meta text-ink-3">© {new Date().getFullYear()} TransitionBridge</p>
