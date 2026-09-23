@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Fraunces, JetBrains_Mono } from 'next/font/google';
+import { PoweredByBadge } from '@/components/brand/PoweredByBadge';
 import { PresenterMode } from '@/components/demo/PresenterMode';
 import './globals.css';
 
@@ -70,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${fraunces.variable} ${jetbrains.variable}`}>
       <body>
         {children}
+        <PoweredByBadge />
         {/* Shift+P. Renders nothing until a presenter turns it on. */}
         <PresenterMode />
       </body>

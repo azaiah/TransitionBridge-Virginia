@@ -357,3 +357,17 @@
 }
 
 .print-only { display: none; }
+
+/* ============================================================================
+   HOST BADGE — Netlify injects a "Powered by Netlify" corner widget on deploy.
+   Turn it off in the dashboard (docs/07_DEPLOY_NETLIFY.md §2.1). If it still
+   appears, these rules hide their pill only — not our [data-powered-by="dataisdata"].
+   ============================================================================ */
+a[href^='https://www.netlify.com'][target='_blank']:not([data-powered-by]),
+iframe[src*='netlify.com'],
+div[class*='netlify-badge'],
+div[id*='netlify-badge'] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

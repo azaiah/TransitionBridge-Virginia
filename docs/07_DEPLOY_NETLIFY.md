@@ -22,7 +22,7 @@ export default nextConfig;
 `netlify.toml`:
 ```toml
 [build]
-  command = "npm run generate && npm run build"
+  command = "npm run generate && npm run assets && npm run build"
   publish  = "out"
 
 [build.environment]
@@ -51,9 +51,19 @@ deterministically as part of every deploy.
 
 1. Push the repository to GitHub.
 2. Netlify → **Add new site → Import an existing project** → select the repo.
-3. Confirm build command `npm run generate && npm run build` and publish directory `out`.
+3. Confirm build command `npm run generate && npm run assets && npm run build` and publish directory `out`.
 4. Set the site name to **`transitionbridge-va`** → `https://transitionbridge-va.netlify.app`.
 5. Deploy, then open the deployed URL and walk every route.
+
+### 2.1 Remove the “Powered by Netlify” corner badge
+
+Netlify adds its own small badge on some sites. The app shows **Powered by DataIsData** in the bottom-right instead.
+
+1. Netlify → your site → **Site configuration** → **General** → **Site information**.
+2. Turn off **Netlify badge** / **Show Netlify badge** (wording varies).
+3. **Clear cache and deploy site** so the change applies.
+
+If the Netlify pill still appears after that, the site CSS includes a fallback that hides their widget only (not our badge). You should still disable it in the dashboard for a clean demo.
 
 ---
 
