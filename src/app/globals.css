@@ -1,0 +1,359 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   TOKENS — docs/03_DESIGN_SYSTEM.md §1
+   Values are sampled from the IEP Partners artwork, not estimated.
+   Contrast for every pair used in the app is computed by `npm run contrast`.
+   ============================================================================ */
+:root {
+  /* ---- Brand ---- */
+  --tb-orange:            #CE5500;
+  --tb-orange-deep:       #A84300;
+  --tb-orange-bright:     #E8871E;
+  --tb-orange-subtle:     #FBEADB;
+  --tb-orange-ring:       rgba(206, 85, 0, 0.40);
+
+  /* ---- Surfaces ---- */
+  --tb-canvas:            #FBF7F1;
+  --tb-surface:           #FFFFFF;
+  --tb-surface-sunken:    #F5EFE6;
+  --tb-navy:              #10213C;
+  --tb-navy-soft:         #1B3559;
+
+  /* ---- Text ---- */
+  --tb-ink:               #1E2733;
+  --tb-ink-2:             #45525F;
+  --tb-ink-3:             #586674;
+  --tb-ink-disabled:      #6B7580;
+  --tb-ink-on-navy:       #FFFFFF;
+  --tb-ink-on-navy-2:     #B7C4D6;
+
+  /* ---- Borders ---- */
+  --tb-border:            #E4DACB;
+  --tb-border-strong:     #756654;
+  --tb-hairline:          #EFE7DA;
+
+  /* ---- Data visualization: the bridge, blue -> orange -> green ---- */
+  --tb-viz-1:             #0D4A72;
+  --tb-viz-2:             #3C7FA0;
+  --tb-viz-3:             #CE5500;
+  --tb-viz-4:             #E8871E;
+  --tb-viz-5:             #3C6D0F;
+  --tb-viz-6:             #6FA33A;
+  --tb-viz-neutral:       #B6A992;
+
+  /* ---- Semantic status (always paired with text + icon) ---- */
+  --tb-ok:      #2F7D32;  --tb-ok-bg:      #E9F3E9;
+  --tb-warn:    #8F4F00;  --tb-warn-bg:    #FCF0DC;
+  --tb-risk:    #B3261E;  --tb-risk-bg:    #FBE9E7;
+  --tb-info:    #2C6E8F;  --tb-info-bg:    #E6EFF3;
+  --tb-neutral: #5C6672;  --tb-neutral-bg: #EFEAE2;
+
+  /* ---- Elevation: warm-tinted only ---- */
+  --tb-shadow-sm:  0 1px 2px rgba(30, 39, 51, 0.06);
+  --tb-shadow-md:  0 2px 8px rgba(30, 39, 51, 0.08);
+  --tb-shadow-lg:  0 6px 24px rgba(232, 135, 30, 0.16);
+  --tb-shadow-pop: 0 12px 40px rgba(30, 39, 51, 0.14);
+
+  /* ---- The signature. Once per page. ---- */
+  --tb-bridge: linear-gradient(90deg, #0D4A72 0%, #CE5500 50%, #3C6D0F 100%);
+
+  /* ---- Type families (next/font injects the variables) ---- */
+  --tb-font-sans:  var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tb-font-serif: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --tb-font-mono:  var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- Type scale. --tb-type-scale is the demo-mode multiplier. ---- */
+  --tb-type-scale: 1;
+  --tb-size-display:  calc(64px * var(--tb-type-scale));
+  --tb-size-h1:       calc(40px * var(--tb-type-scale));
+  --tb-size-h2:       calc(28px * var(--tb-type-scale));
+  --tb-size-h3:       calc(20px * var(--tb-type-scale));
+  --tb-size-body:     calc(15px * var(--tb-type-scale));
+  --tb-size-body-lg:  calc(17px * var(--tb-type-scale));
+  --tb-size-label:    calc(13px * var(--tb-type-scale));
+  --tb-size-caption:  calc(12px * var(--tb-type-scale));
+  --tb-size-meta:     calc(10px * var(--tb-type-scale));
+  --tb-size-kpi:      calc(34px * var(--tb-type-scale));
+  --tb-size-kpi-lg:   calc(48px * var(--tb-type-scale));
+
+  /* ---- Motion. Overridden to 0.01ms under prefers-reduced-motion. ---- */
+  --tb-dur-hover:  120ms;
+  --tb-dur-panel:  240ms;
+  --tb-dur-chart:  400ms;
+  --tb-dur-role:   320ms;
+  --tb-dur-map:    300ms;
+}
+
+/* Presenter mode: one step larger for projection. docs/01_PRODUCT_SPEC.md §8.5 */
+:root[data-presentation='on'] {
+  --tb-type-scale: 1.145;
+}
+
+/* In presenter mode the section being talked about gets a soft ring, so a room of
+   twenty people can see where the speaker is pointing without a laser pointer. */
+:root[data-presentation='on'] main section:hover,
+:root[data-presentation='on'] main section:focus-within {
+  outline: 2px solid var(--tb-orange-ring);
+  outline-offset: 8px;
+  border-radius: 16px;
+}
+
+/* ---- Density. docs/03_DESIGN_SYSTEM.md §3 ---- */
+[data-density='comfortable'] {
+  --tb-section-gap: 80px;
+  --tb-card-pad: 32px;
+  --tb-element-gap: 22px;
+  --tb-gutter: 24px;
+}
+[data-density='compact'] {
+  --tb-section-gap: 32px;
+  --tb-card-pad: 18px;
+  --tb-element-gap: 10px;
+  --tb-gutter: 16px;
+}
+
+@layer base {
+  * {
+    border-color: var(--tb-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--tb-canvas);
+    color: var(--tb-ink);
+    font-family: var(--tb-font-sans);
+    font-size: var(--tb-size-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Every numeric column and KPI value. Non-aligned digits read as amateur. */
+  .tabular,
+  th[data-numeric='true'],
+  td[data-numeric='true'] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--tb-ink);
+    text-wrap: balance;
+    /* A long word ("documentation") in a large heading must never push a 320px phone
+       sideways. `anywhere` only breaks a word when it truly cannot fit on its own line. */
+    overflow-wrap: anywhere;
+  }
+
+  /* Focus: always visible, never removed. docs/11_USABILITY.md */
+  :focus-visible {
+    outline: 2px solid var(--tb-orange);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Keyboard users get the ring; pointer users do not get a stray outline. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--tb-orange-subtle);
+    color: var(--tb-ink);
+  }
+
+  /* Scrollbars, warm-tinted to match the canvas. */
+  * {
+    scrollbar-color: var(--tb-border-strong) transparent;
+    scrollbar-width: thin;
+  }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--tb-border-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover { background-color: var(--tb-ink-3); background-clip: content-box; }
+}
+
+@layer components {
+  /* The signature rule. Once per page. */
+  .bridge-rule {
+    height: 3px;
+    border-radius: 999px;
+    background: var(--tb-bridge);
+  }
+
+  .card {
+    background: var(--tb-surface);
+    border: 1px solid var(--tb-border);
+    border-radius: 16px;
+    box-shadow: var(--tb-shadow-sm);
+  }
+
+  .meta-label {
+    font-family: var(--tb-font-mono);
+    font-size: var(--tb-size-meta);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tb-ink-3);
+  }
+
+  .skip-link {
+    position: absolute;
+    left: 8px;
+    top: -100px;
+    z-index: 100;
+    padding: 10px 18px;
+    background: var(--tb-surface);
+    color: var(--tb-ink);
+    border: 2px solid var(--tb-orange);
+    border-radius: 10px;
+    font-weight: 600;
+    transition: top var(--tb-dur-hover) ease-out;
+  }
+  .skip-link:focus {
+    top: 8px;
+  }
+
+  /* Screen-reader-only, but focusable variants stay reachable. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+@layer utilities {
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .content-marketing {
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 24px;
+  }
+  .content-product {
+    max-width: 1680px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  /*
+   * Phones and small tablets: tighter gutters and slightly smaller display type so
+   * nothing forces horizontal scroll at 320–390px (docs/06_BUILD_PROMPTS.md prompt 10).
+   */
+  @media (max-width: 639px) {
+    [data-density='comfortable'] {
+      --tb-gutter: 16px;
+      --tb-section-gap: 48px;
+      --tb-card-pad: 20px;
+    }
+    [data-density='compact'] {
+      --tb-gutter: 12px;
+    }
+    :root {
+      --tb-size-display: calc(40px * var(--tb-type-scale));
+      --tb-size-h1: calc(32px * var(--tb-type-scale));
+      --tb-size-h2: calc(24px * var(--tb-type-scale));
+    }
+    .content-marketing {
+      padding-inline: 16px;
+    }
+    .content-product {
+      padding-inline: 12px;
+    }
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* ============================================================================
+   REDUCED MOTION — animation becomes INSTANT, not merely faster.
+   docs/03_DESIGN_SYSTEM.md §5. This is an accessibility requirement.
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --tb-dur-hover: 0.01ms;
+    --tb-dur-panel: 0.01ms;
+    --tb-dur-chart: 0.01ms;
+    --tb-dur-role:  0.01ms;
+    --tb-dur-map:   0.01ms;
+  }
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   PRINT — branded, dated, and carrying the demonstration-data notice.
+   docs/01_PRODUCT_SPEC.md §7.4
+   ============================================================================ */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 14mm 12mm 16mm;
+  }
+
+  :root { --tb-type-scale: 0.92; }
+
+  body {
+    background: #FFFFFF !important;
+    color: #000000;
+  }
+
+  /* Chrome that has no meaning on paper. */
+  .print-hide,
+  nav[aria-label='Primary'],
+  [data-print='hide'] {
+    display: none !important;
+  }
+
+  .print-only { display: block !important; }
+
+  .card,
+  [data-print='block'] {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #CFC2AE !important;
+  }
+
+  a[href]::after { content: ''; }
+
+  table { break-inside: auto; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+
+.print-only { display: none; }

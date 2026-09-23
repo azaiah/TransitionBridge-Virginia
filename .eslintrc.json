@@ -1,0 +1,20 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "Math.random",
+        "message": "Determinism is a build requirement. Use the seeded PRNG in scripts/lib/seed.ts."
+      }
+    ],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "Math",
+        "property": "random",
+        "message": "Determinism is a build requirement. Use the seeded PRNG in scripts/lib/seed.ts."
+      }
+    ]
+  }
+}
