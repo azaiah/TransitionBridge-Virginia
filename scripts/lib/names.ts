@@ -54,7 +54,7 @@ export function studentDisplayName(rng: Rng): string {
   return `${given.charAt(0)}. ${surname}`;
 }
 
-/** Staff personas get the same shortened form, which is how rosters actually read. */
+/** Staff personas get the same shortened form as students — initial plus surname. */
 export function personName(rng: Rng): string {
   return studentDisplayName(rng);
 }

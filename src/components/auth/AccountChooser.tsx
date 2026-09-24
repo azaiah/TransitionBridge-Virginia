@@ -77,6 +77,12 @@ export function AccountChooser() {
         <p className="mt-2 text-body text-ink-2">
           {pending ? `Opening the ${pending.portalName.toLowerCase()}…` : 'Choose an account to continue to TransitionBridge'}
         </p>
+        {!pending && (
+          <p className="mt-3 text-caption text-ink-3">
+            Fictional names only — job titles and organizations match real Virginia roles, but
+            no person listed here is real. For demonstration purposes.
+          </p>
+        )}
       </div>
 
       {/* Screen readers hear the sign-in step without having to hunt for it. */}
@@ -110,8 +116,8 @@ export function AccountChooser() {
         <div className="px-6 py-5 sm:px-10">
           <p className="text-caption text-ink-2">
             <strong className="font-semibold text-ink">Demonstration sign-in.</strong> Each account
-            opens one person&apos;s view of the product. There is no password and no real account,
-            and every record inside is synthetic.
+            opens one view of the product. Names are made up; titles and workplaces illustrate
+            real roles. There is no password, and every record inside is synthetic.
           </p>
           <Link
             href="/"

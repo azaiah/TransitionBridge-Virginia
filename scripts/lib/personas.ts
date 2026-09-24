@@ -14,20 +14,31 @@ export function buildPersonas(
 ): Persona[] {
   const personas: Persona[] = [];
 
+  // Fixed fictional name for the default state sign-in account. Burn one personName(rng)
+  // first so the rest of the seeded dataset matches prior builds (tests depend on it).
+  personName(rng);
   personas.push({
     id: 'DEMO-PER-STATE-001',
     role: 'state_leadership',
-    displayName: personName(rng),
+    displayName: 'J. Brown',
     title: 'Statewide Pre-ETS Program Director',
     scopeId: 'STATEWIDE',
     blurb: 'Sees every district, division, and provider in one view.',
   });
 
   districts.forEach((district, i) => {
+    // First counselor = default sign-in persona; burn RNG then apply a fixed fake name.
+    let displayName: string;
+    if (i === 0) {
+      personName(rng);
+      displayName = 'A. Davis';
+    } else {
+      displayName = personName(rng);
+    }
     personas.push({
       id: `DEMO-PER-DARS-${String(i + 1).padStart(3, '0')}`,
       role: 'dars_counselor',
-      displayName: personName(rng),
+      displayName,
       title: 'Vocational Rehabilitation Counselor',
       scopeId: district.id,
       blurb: `Triages the referral queue for ${district.name}.`,
@@ -37,10 +48,17 @@ export function buildPersonas(
   // Every division gets a transition coordinator, so every referral on the system has a
   // real submitter rather than being attributed to someone in another division.
   divisions.forEach((division, i) => {
+    let displayName: string;
+    if (i === 0) {
+      personName(rng);
+      displayName = 'C. Smith';
+    } else {
+      displayName = personName(rng);
+    }
     personas.push({
       id: `DEMO-PER-SCHOOL-${String(i + 1).padStart(3, '0')}`,
       role: 'school_coordinator',
-      displayName: personName(rng),
+      displayName,
       title: 'Transition Coordinator',
       scopeId: division.id,
       blurb: `Submits and tracks referrals for ${division.name}.`,
@@ -50,11 +68,18 @@ export function buildPersonas(
   // One coordinator per provider, so every vendor action in a timeline has a real actor.
   // The id mirrors the provider's id (DEMO-VND-0042 → DEMO-PER-VND-0042) so a timeline
   // can name the actor without carrying a lookup table into the browser.
-  vendors.forEach((vendor) => {
+  vendors.forEach((vendor, i) => {
+    let displayName: string;
+    if (i === 0) {
+      personName(rng);
+      displayName = 'R. Miller';
+    } else {
+      displayName = personName(rng);
+    }
     personas.push({
       id: `DEMO-PER-VND-${vendor.id.slice(-4)}`,
       role: 'vendor',
-      displayName: personName(rng),
+      displayName,
       title: 'Program Coordinator',
       scopeId: vendor.id,
       blurb: `Manages referrals and service logging for ${vendor.name}.`,
