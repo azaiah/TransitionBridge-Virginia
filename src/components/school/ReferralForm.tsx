@@ -7,11 +7,27 @@ import { getStudentById } from '@/data/records';
 import { ACTIVITY_LABELS } from '@/data/types';
 import type { PreEtsActivity } from '@/data/types';
 import { cn } from '@/lib/utils';
+import { StudentIdentity } from '@/components/identity/StudentIdentity';
+import { useViewer } from '@/context/useViewer';
+import { transitionIdFor } from '@/data/identity';
+import { looksLikeTransitionId, studentNumber } from '@/lib/identity';
+
+/** Accepts a Transition ID (AN-VA-000412) or the internal record number (DEMO-STU-000412). */
+function findStudent(input: string) {
+  const value = input.trim().toUpperCase();
+  if (looksLikeTransitionId(value)) {
+    const candidate = getStudentById(`DEMO-STU-${studentNumber(value)}`);
+    return candidate && transitionIdFor(candidate) === value ? candidate : undefined;
+  }
+  return getStudentById(value);
+}
 
 export function ReferralForm({ initialStudentId }: { initialStudentId?: string }) {
   const [studentId, setStudentId] = useState(initialStudentId ?? '');
   const [isSearching, setIsSearching] = useState(false);
   const [student, setStudent] = useState(initialStudentId ? getStudentById(initialStudentId) : null);
+  const [notFound, setNotFound] = useState(false);
+  const { persona } = useViewer();
   
   const [activities, setActivities] = useState<Set<PreEtsActivity>>(new Set());
   const [consentMethod, setConsentMethod] = useState<'upload' | 'attest' | null>(null);
@@ -40,8 +56,9 @@ export function ReferralForm({ initialStudentId }: { initialStudentId?: string }
     if (!studentId) return;
     setIsSearching(true);
     setTimeout(() => {
-      const found = getStudentById(studentId.trim());
+      const found = findStudent(studentId);
       setStudent(found ?? null);
+      setNotFound(!found);
       setIsSearching(false);
     }, 400);
   };
@@ -62,7 +79,9 @@ export function ReferralForm({ initialStudentId }: { initialStudentId?: string }
     return (
       <div className="rounded-card border-2 border-ok bg-surface p-8 text-center max-w-2xl mx-auto">
         <CheckCircle2 className="mx-auto h-12 w-12 text-ok" />
-        <h2 className="mt-4 text-h2 text-ink">Referral submitted for {student?.displayName}</h2>
+        <h2 className="mt-4 text-h2 text-ink">
+          Referral submitted for <span className="font-mono">{student ? transitionIdFor(student) : ''}</span>
+        </h2>
         <p className="mt-2 text-body text-ink-2">
           Reference <strong>DEMO-REF-2026-004182</strong>.
         </p>
@@ -80,34 +99,54 @@ export function ReferralForm({ initialStudentId }: { initialStudentId?: string }
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-8">
       {/* 1. Student Lookup */}
-      <section className="rounded-card border border-line bg-surface p-6 shadow-sm">
+      <section className="rounded-card border border-line bg-surface p-6 shadow-sm" data-coach="lookup">
         <h2 className="text-h2 text-ink">1. Student lookup</h2>
         <p className="mt-1 text-body text-ink-2">We&apos;ll pre-fill everything we already know.</p>
         
         {!student ? (
-          <div className="mt-6 flex gap-3">
-            <div className="flex-1">
-              <label htmlFor="studentId" className="sr-only">Student ID</label>
-              <input
-                id="studentId"
-                type="text"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                placeholder="Enter Student ID (e.g., DEMO-STU-000412)"
-                className="w-full rounded-control border border-line bg-surface px-4 py-2 text-body focus:border-orange focus:outline-none focus:ring-1 focus:ring-orange"
-              />
+          <div className="mt-6">
+            <label htmlFor="studentId" className="text-label font-medium text-ink">
+              Student’s Transition ID
+            </label>
+            <div className="mt-1 flex flex-wrap gap-3">
+              <div className="min-w-0 flex-1">
+                <input
+                  id="studentId"
+                  type="text"
+                  value={studentId}
+                  onChange={(e) => {
+                    setStudentId(e.target.value);
+                    setNotFound(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="e.g. AN-VA-000412"
+                  aria-describedby="studentId-help"
+                  className="w-full rounded-control border border-line bg-surface px-4 py-2 font-mono text-body focus:border-orange focus:outline-none focus:ring-1 focus:ring-orange"
+                />
+              </div>
+              <Button variant="primary" type="button" onClick={handleSearch} disabled={!studentId || isSearching}>
+                {isSearching ? 'Searching...' : 'Find student'}
+              </Button>
             </div>
-            <Button variant="primary" type="button" onClick={handleSearch} disabled={!studentId || isSearching}>
-              {isSearching ? 'Searching...' : 'Find student'}
-            </Button>
+            <p id="studentId-help" className="mt-1 text-caption text-ink-2" aria-live="polite">
+              {notFound
+                ? 'No student in the platform has that ID. Check the letters and the six digits, or pick from “Eligible, not referred” on your dashboard.'
+                : 'Students are found by Transition ID — no names are typed or stored in the search.'}
+            </p>
           </div>
         ) : (
           <div className="mt-6 rounded-lg border border-line bg-surface-sunken p-4">
             <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-h3 text-ink">{student.displayName}</h3>
-                <p className="text-body text-ink-2">ID: {student.id}</p>
-              </div>
+              <StudentIdentity
+                student={student}
+                size="title"
+                canReveal={persona?.scopeId === student.divisionId}
+              />
               <button 
                 type="button" 
                 onClick={() => setStudent(null)}

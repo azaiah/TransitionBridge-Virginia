@@ -5,9 +5,9 @@ import { DataTable } from '@/components/ui/DataTable';
 import { MetricLegend } from '@/components/ui/MetricLegend';
 import { ChartFrame } from '@/components/ui/ChartFrame';
 import type { DistrictMetrics } from '@/data/types';
-import { getDistrictById } from '@/data';
+import { demoData, getDistrictById } from '@/data';
 import { explainChart } from '@/lib/definitions';
-import { reportableRate } from '@/lib/metrics';
+import { outcomeRates } from '@/lib/metrics';
 
 export function DistrictComparison({ metrics }: { metrics: DistrictMetrics[] }) {
   const data = metrics.map((m) => {
@@ -18,10 +18,14 @@ export function DistrictComparison({ metrics }: { metrics: DistrictMetrics[] }) 
       referralsSubmitted: m.referralsSubmitted,
       fillRate: m.referralsSubmitted > 0 ? m.referralsAssigned / m.referralsSubmitted : 0,
       medianDaysToAssignment: m.medianDaysToAssignment,
-      completionRate: m.referralsAssigned > 0 ? m.referralsCompleted / m.referralsAssigned : 0,
-      // Null when too few cases completed this quarter to report a rate honestly.
-      employmentOutcomeRate: reportableRate(m.employmentOutcomeRate, m.referralsCompleted),
-      referralsCompleted: m.referralsCompleted,
+      ...(() => {
+        const o = outcomeRates(demoData.districtMetrics.filter((x) => x.darsDistrictId === m.darsDistrictId));
+        return {
+          completionRate: o.completionRate ?? 0,
+          employmentOutcomeRate: o.employmentOutcomeRate,
+          referralsCompleted: o.completed,
+        };
+      })(),
       vendorCount: m.vendorCount,
       preEtsSpend: m.preEtsSpend,
     };
@@ -34,7 +38,7 @@ export function DistrictComparison({ metrics }: { metrics: DistrictMetrics[] }) 
       <ChartFrame
         title="District performance comparison"
         explain={explainChart('fillRate')}
-        tableHeaders={['District', 'Referrals in', 'Fill rate', 'Completion rate']}
+        tableHeaders={['District', 'Referrals in', 'Fill rate', 'Completion rate (2 years)']}
         tableRows={chartData.map((r) => [
           r.name,
           r.referralsSubmitted,
@@ -84,7 +88,7 @@ export function DistrictComparison({ metrics }: { metrics: DistrictMetrics[] }) 
             </ResponsiveContainer>
           </div>
           <div className="h-48">
-            <p className="mb-2 text-label text-ink-2">Completion rate</p>
+            <p className="mb-2 text-label text-ink-2">Completion rate (2 years)</p>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <XAxis dataKey="name" hide />
@@ -137,17 +141,17 @@ export function DistrictComparison({ metrics }: { metrics: DistrictMetrics[] }) 
           },
           {
             key: 'completionRate',
-            header: 'Completion rate',
+            header: 'Completion rate (2 years)',
             render: (r) => `${Math.round(r.completionRate * 100)}%`,
             sortValue: (r) => r.completionRate,
             numeric: true,
           },
           {
             key: 'employmentOutcomeRate',
-            header: 'Employment rate',
+            header: 'Employment rate (2 years)',
             render: (r) =>
               r.employmentOutcomeRate === null ? (
-                <span className="text-ink-3" title={`Only ${r.referralsCompleted} completed cases — too few to report a rate`}>
+                <span className="text-ink-3" title={`Only ${r.referralsCompleted} completed cases in two years — too few to report a rate`}>
                   Too few cases
                 </span>
               ) : (

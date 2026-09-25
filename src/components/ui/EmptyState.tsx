@@ -24,6 +24,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
+      data-empty-state=""
       className={cn(
         'flex flex-col items-center justify-center rounded-card border border-dashed border-line-strong bg-surface-sunken px-6 py-12 text-center',
         className,

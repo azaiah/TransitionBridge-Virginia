@@ -7,7 +7,8 @@ import { referrals, students } from '@/data/records';
 import { Button } from '@/components/ui/Button';
 import { ACTIVITY_LABELS, DECLINE_REASONS } from '@/data/types';
 import type { DeclineReason } from '@/data/types';
-import { CheckCircle2, XCircle, HelpCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, HelpCircle, AlertTriangle, Lock } from 'lucide-react';
+import { transitionIdFor } from '@/data/identity';
 
 export function VendorInbox() {
   const roleCtx = useRoleOptional();
@@ -68,13 +69,19 @@ export function VendorInbox() {
                 <div className="flex flex-col gap-6 sm:flex-row sm:justify-between">
                   <div>
                     <div className="flex items-center gap-3">
-                      <h3 className="text-h3 text-ink">{student?.displayName}</h3>
+                      <h3 className="font-mono text-h3 text-ink">
+                        {transitionIdFor({ id: offer.studentId, schoolId: student?.schoolId ?? offer.schoolId })}
+                      </h3>
                       <span className="rounded-full bg-info-bg px-2.5 py-0.5 text-caption font-medium text-info">
                         New offer
                       </span>
                     </div>
                     <p className="mt-1 text-body text-ink-2">
-                      ID: {student?.id} · Age {student?.age} · {student?.planType === 'IEP' ? 'IEP' : 'Section 504'}
+                      Age {student?.age} · {student?.planType === 'IEP' ? 'IEP' : 'Section 504'} ·{' '}
+                      <span className="inline-flex items-center gap-1 text-caption">
+                        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                        Name shared only with the school and DARS
+                      </span>
                     </p>
                     
                     <div className="mt-4">

@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/Button';
 import { ChartFrame } from '@/components/ui/ChartFrame';
 import { explainChart } from '@/lib/definitions';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
-import { Printer, Download } from 'lucide-react';
+import { Printer } from 'lucide-react';
+import { GuardedDownload } from '@/components/privacy/GuardedDownload';
 
 export function ReportBuilder() {
-  const [scope, setScope] = useState<'state' | 'district' | 'division'>('state');
+  const [scope, setScope] = useState<'state' | 'district' | 'division'>('district');
   const [period, setPeriod] = useState<string>(CURRENT_PERIOD);
   const [measure, setMeasure] = useState<'referrals' | 'fillRate' | 'outcomes'>('referrals');
 
@@ -66,17 +67,10 @@ export function ReportBuilder() {
     window.print();
   };
 
-  const handleExportCsv = () => {
+  const buildReportCsv = () => {
     const headers = ['Region', 'Value'];
-    const rows = data.map(r => [r.name, r.value.toString()]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `report-${scope}-${period}-${measure}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const rows = data.map((r) => [`"${r.name.replace(/"/g, '""')}"`, r.value.toString()]);
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   };
 
   return (
@@ -122,10 +116,14 @@ export function ReportBuilder() {
         </div>
         
         <div className="mt-6 flex justify-end gap-3">
-          <Button variant="secondary" onClick={handleExportCsv}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <GuardedDownload
+            kind="aggregate"
+            variant="secondary"
+            filename={`report-${scope}-${period}-${measure}.csv`}
+            rowCount={data.length}
+            buildCsv={buildReportCsv}
+            label="Export CSV"
+          />
           <Button variant="primary" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
             Print / PDF

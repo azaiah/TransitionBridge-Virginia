@@ -6,17 +6,23 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ReferralTimeline } from '@/components/shared/ReferralTimeline';
-import { useRoleOptional } from '@/context/RoleContext';
-import { getPersonaById, demoData } from '@/data';
+import { useViewer } from '@/context/useViewer';
+import { demoData } from '@/data';
 import { getReferralsForDivision, students } from '@/data/records';
-import { isStale } from '@/lib/metrics';
+import { isOpen, isStale } from '@/lib/metrics';
+import Link from 'next/link';
+import { transitionIdFor } from '@/data/identity';
+import { EscalationPill } from '@/components/record/EscalationPill';
+import { escalationFor } from '@/lib/escalation';
 import { formatDate, formatFullDate, formatRelative } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 
 /** The statuses a coordinator asks about, in the words they use. */
 const STATUS_OPTIONS = [
-  { value: 'ALL', label: 'All statuses' },
+  { value: 'OPEN', label: 'All open referrals' },
+  { value: 'ALL', label: 'Everything, including closed' },
   { value: 'STUCK', label: 'Stuck more than 14 days' },
+  { value: 'PAST_DUE', label: 'Early warning: past due 14+ days' },
   { value: 'NEW', label: 'New' },
   { value: 'UNDER_REVIEW', label: 'Under review' },
   { value: 'AWAITING_CONSENT', label: 'Awaiting consent' },
@@ -24,13 +30,15 @@ const STATUS_OPTIONS = [
   { value: 'ASSIGNED', label: 'Assigned' },
   { value: 'IN_SERVICE', label: 'In service' },
   { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CLOSED_NOT_SERVED', label: 'Closed — not served' },
 ];
 
+const PAGE = 25;
+
 export function MyReferralsTable() {
-  const roleCtx = useRoleOptional();
+  const { persona } = useViewer();
   const searchParams = useSearchParams();
-  const personaId = roleCtx?.personaId;
-  const persona = personaId ? getPersonaById(personaId) : null;
+  const personaId = persona?.id;
 
   const divisionId = persona?.scopeId ?? demoData.divisions[0].id;
   const allDivisionReferrals = getReferralsForDivision(divisionId);
@@ -43,8 +51,11 @@ export function MyReferralsTable() {
   // screen always agree on what the user just clicked.
   const [statusFilter, setStatusFilter] = useState<string>(() => {
     if (searchParams.get('stuck') === 'true') return 'STUCK';
-    return searchParams.get('status') ?? 'ALL';
+    if (searchParams.get('pastDue') === 'true') return 'PAST_DUE';
+    return searchParams.get('status') ?? 'OPEN';
   });
+  const [limit, setLimit] = useState(PAGE);
+  const studentById = useMemo(() => new Map(students.map((s) => [s.id, s])), []);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filteredReferrals = useMemo(() => {
@@ -52,7 +63,9 @@ export function MyReferralsTable() {
       (a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt),
     );
     if (statusFilter === 'ALL') return sorted;
+    if (statusFilter === 'OPEN') return sorted.filter((r) => isOpen(r.status));
     if (statusFilter === 'STUCK') return sorted.filter((r) => isStale(r));
+    if (statusFilter === 'PAST_DUE') return sorted.filter((r) => escalationFor(r) !== null);
     return sorted.filter((r) => r.status === statusFilter);
   }, [myReferrals, statusFilter]);
 
@@ -61,7 +74,7 @@ export function MyReferralsTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-line bg-surface p-4" data-coach="referral-filter">
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="referral-status" className="text-label font-medium text-ink">
             Show me
@@ -70,7 +83,10 @@ export function MyReferralsTable() {
             id="referral-status"
             className="rounded-control border border-line bg-surface px-3 py-1.5 text-body focus:border-orange focus:outline-none focus:ring-1 focus:ring-orange"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setLimit(PAGE);
+            }}
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -81,7 +97,7 @@ export function MyReferralsTable() {
         </div>
 
         <p className="text-caption text-ink-2" role="status" aria-live="polite">
-          {`Showing ${filteredReferrals.length.toLocaleString()} of ${myReferrals.length.toLocaleString()} referrals you submitted`}
+          {`Showing ${Math.min(limit, filteredReferrals.length).toLocaleString()} of ${filteredReferrals.length.toLocaleString()} matching · ${myReferrals.length.toLocaleString()} referrals submitted in all`}
         </p>
       </div>
 
@@ -93,7 +109,7 @@ export function MyReferralsTable() {
           onAction={() => setStatusFilter('ALL')}
         />
       ) : (
-        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-sm">
+        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-sm" data-coach="referral-list">
           <table className="w-full border-collapse text-left text-body">
             <caption className="sr-only">
               Referrals you submitted. Select a row to see what has happened to it.
@@ -101,7 +117,7 @@ export function MyReferralsTable() {
             <thead>
               <tr className="border-b border-line bg-surface-sunken">
                 <th scope="col" className="px-3 py-2 text-label font-medium text-ink-2">
-                  Student
+                  Student (Transition ID)
                 </th>
                 <th scope="col" className="px-3 py-2 text-label font-medium text-ink-2">
                   Submitted
@@ -115,9 +131,11 @@ export function MyReferralsTable() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {filteredReferrals.map((ref) => {
-                const student = students.find((s) => s.id === ref.studentId);
+              {filteredReferrals.slice(0, limit).map((ref) => {
+                const student = studentById.get(ref.studentId);
                 const isExpanded = expandedId === ref.id;
+                const transitionId = transitionIdFor({ id: ref.studentId, schoolId: student?.schoolId ?? ref.schoolId });
+                const escalation = escalationFor(ref);
 
                 return (
                   <React.Fragment key={ref.id}>
@@ -135,15 +153,14 @@ export function MyReferralsTable() {
                           ) : (
                             <ChevronDown className="h-4 w-4 text-ink-3" aria-hidden="true" />
                           )}
-                          <span>
-                            <span className="block font-medium text-ink">
-                              {student?.displayName ?? 'Student record'}
-                            </span>
-                            <span className="block font-mono text-caption text-ink-3">
-                              {ref.studentId}
-                            </span>
-                          </span>
+                          <span className="block font-mono font-medium text-ink">{transitionId}</span>
                         </button>
+                        <Link
+                          href={`/school/students/detail/?id=${ref.studentId}`}
+                          className="ml-6 text-caption text-orange-deep underline underline-offset-2"
+                        >
+                          Open record<span className="sr-only"> {transitionId}</span>
+                        </Link>
                       </td>
                       <td className="px-3 py-3 text-ink">
                         <time dateTime={ref.submittedAt} title={formatFullDate(ref.submittedAt)}>
@@ -157,7 +174,10 @@ export function MyReferralsTable() {
                         {`${ref.requestedActivities.length} of 5 required activities`}
                       </td>
                       <td className="px-3 py-3">
-                        <StatusPill status={ref.status} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusPill status={ref.status} />
+                          {escalation && <EscalationPill escalation={escalation} />}
+                        </div>
                       </td>
                     </tr>
 
@@ -178,6 +198,17 @@ export function MyReferralsTable() {
               })}
             </tbody>
           </table>
+          {filteredReferrals.length > limit && (
+            <div className="border-t border-line bg-surface-sunken p-3 text-center">
+              <button
+                type="button"
+                onClick={() => setLimit((n) => n + PAGE)}
+                className="text-label font-medium text-orange-deep underline underline-offset-2"
+              >
+                Show {Math.min(PAGE, filteredReferrals.length - limit)} more
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

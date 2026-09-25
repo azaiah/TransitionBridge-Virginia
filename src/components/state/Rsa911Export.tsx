@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { GuardedDownload } from '@/components/privacy/GuardedDownload';
+import { transitionIdFor } from '@/data/identity';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ExplainThis } from '@/components/ui/ExplainThis';
 import { CURRENT_PERIOD, demoData, getVendorById } from '@/data';
@@ -42,21 +42,18 @@ export function Rsa911Export() {
       return referralById.get(service.referralId)?.darsDistrictId === districtId;
     });
 
-    return buildRsa911Rows(scoped, referralById, (vendorId, deliveredInHouse) => {
+    const built = buildRsa911Rows(scoped, referralById, (vendorId, deliveredInHouse) => {
       if (deliveredInHouse) return 'DARS (delivered in house)';
       return vendorId ? (getVendorById(vendorId)?.name ?? 'Unknown provider') : 'Unknown provider';
     });
+    // The restricted identity layer: the file identifies students by Transition ID only.
+    return built.map((row) => {
+      const referral = referralById.get(row.recordIdentifier);
+      return referral
+        ? { ...row, studentIdentifier: transitionIdFor({ id: row.studentIdentifier, schoolId: referral.schoolId }) }
+        : row;
+    });
   }, [districtId, period, referralById]);
-
-  function download() {
-    const blob = new Blob([toRsa911Csv(rows)], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `rsa-911-aligned-${districtId}-${period}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
 
   const fyPeriods = periodsInCurrentFederalFy(demoData.periods);
 
@@ -104,10 +101,15 @@ export function Rsa911Export() {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button variant="primary" onClick={download} disabled={rows.length === 0}>
-            <Download className="h-4 w-4" aria-hidden="true" />
-            Download {rows.length.toLocaleString()} service records
-          </Button>
+          <GuardedDownload
+            kind="records"
+            variant="primary"
+            filename={`rsa-911-aligned-${districtId}-${period}.csv`}
+            rowCount={rows.length}
+            buildCsv={() => toRsa911Csv(rows)}
+            disabled={rows.length === 0}
+            label={`Download ${rows.length.toLocaleString()} service records`}
+          />
           <p aria-live="polite" className="text-caption text-ink-2">
             {rows.length.toLocaleString()} rows match this selection.
           </p>

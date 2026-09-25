@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import placesJson from '@/data/generated/search-places.json';
+import { useViewer } from '@/context/useViewer';
+import { demoData, getDivisionById } from '@/data';
+import { recordHref } from '@/lib/portal';
 import {
   expandStudentIndex,
   groupResults,
@@ -55,9 +58,31 @@ export function GlobalSearch() {
     return () => window.clearTimeout(idle);
   }, [loadStudents]);
 
+  // The identity layer applies to search too. Students are listed by Transition ID for
+  // everyone; only the school (its own division) and the counselor (their district) can
+  // find a student by typing a name, and even then the result shows the ID, not the name.
+  const { role, persona } = useViewer();
+  const viewerStudents = useMemo(() => {
+    if (!role) return students.map((s) => ({ ...s, alias: undefined }));
+    let nameScope: Set<string> | null = null;
+    if (role === 'school_coordinator' && persona) {
+      const division = getDivisionById(persona.scopeId);
+      nameScope = new Set(division ? [division.name] : []);
+    } else if (role === 'dars_counselor' && persona) {
+      nameScope = new Set(
+        demoData.divisions.filter((d) => d.darsDistrictId === persona.scopeId).map((d) => d.name),
+      );
+    }
+    return students.map((s) => ({
+      ...s,
+      href: recordHref(role, s.id),
+      alias: nameScope && nameScope.has(s.sub) ? s.alias : undefined,
+    }));
+  }, [students, role, persona]);
+
   const results = useMemo(
-    () => searchEntries([...students, ...PLACES], query),
-    [students, query],
+    () => searchEntries([...viewerStudents, ...PLACES], query),
+    [viewerStudents, query],
   );
   const groups = useMemo(() => groupResults(results), [results]);
   // Flat order matches what the arrow keys walk through.
@@ -126,7 +151,7 @@ export function GlobalSearch() {
   return (
     <div ref={wrapRef} className="relative w-full max-w-md">
       <label className="sr-only" htmlFor="global-search">
-        Search students, school divisions, high schools, and providers
+        Search by Transition ID, school division, high school, or provider
       </label>
       <div className="relative">
         <Search
@@ -147,7 +172,7 @@ export function GlobalSearch() {
           autoComplete="off"
           value={query}
           placeholder="Search records"
-          title="Search a student, division, school, or provider"
+          title="Search a Transition ID, division, school, or provider"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -181,8 +206,8 @@ export function GlobalSearch() {
             <div className="px-3 py-4">
               <p className="text-body text-ink">Nothing matches “{query}”.</p>
               <p className="mt-1 text-caption text-ink-2">
-                Try a division name, a provider name, or a student reference like
-                DEMO-STU-000412.
+                Try a division name, a provider name, or a Transition ID like
+                AN-VA-000412.
               </p>
             </div>
           ) : (
@@ -233,7 +258,7 @@ export function GlobalSearch() {
           )}
           {studentsState === 'error' && (
             <p className="px-3 py-2 text-caption text-ink-2">
-              Student names are unavailable right now. Divisions, schools, and providers still
+              Student records are unavailable right now. Divisions, schools, and providers still
               search normally.
             </p>
           )}

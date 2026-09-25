@@ -34,11 +34,14 @@ A DARS analyst will spot an implausible distribution in about four seconds.
 | School divisions | 132 | Real names |
 | High schools | ~330 | Generated, distributed by division size |
 | Vendors (ESOs) | 85 | Matches the ~85 approved community rehabilitation programs |
-| Students | ~9,000 | Synthetic |
+| Students | ~9,600 | Synthetic. ~9,200 with a referral, plus ~470 known to their school but not yet referred (the school's compliance and "eligible, not referred" lists) |
 | Referrals | ~11,500 | Across 8 quarters |
 | Service records | ~46,000 | ~4 per served student |
 | Outcome records | ~2,100 | |
 | Periods | 8 quarters | 2024-Q3 through 2026-Q2 |
+| Funding authorizations | ~11,600 | Seven funders; every student with a provider has one |
+| Employers / postings | 96 / 156 | 16 employers per DARS district |
+| Access-log history | 290 entries | June 2026; obeys the same access rules as the live screens |
 
 Large enough that virtualization and precomputation genuinely matter; small enough to bundle.
 
@@ -159,7 +162,11 @@ scripts/generate-demo-data.ts
   ├─ outcomes.ts
   ├─ aggregate.ts       ALL metrics computed from records — never hand-written
   ├─ coverage.ts        map cells + gap scores
-  └─ alerts.ts          rules evaluated against real records
+  ├─ alerts.ts          rules evaluated against real records
+  ├─ school-rosters.ts  students known to a school, not yet referred
+  ├─ funding.ts         authorizations by funder, tied to the 15% reserve
+  ├─ employers.ts       employer partners and job postings
+  └─ audit-history.ts   a month of access-log activity, consistent with access rules
 ```
 
 **Aggregates are computed, never authored.** Every KPI tile, chart, and table reads from

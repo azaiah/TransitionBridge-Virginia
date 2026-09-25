@@ -80,15 +80,19 @@ export function buildPlacesIndex(input: SearchIndexInput): SearchEntry[] {
 export function buildStudentsIndex(input: SearchIndexInput): StudentIndexPayload {
   const divisionNames = input.divisions.map((d) => d.name);
   const divisionIndex = new Map(input.divisions.map((d, i) => [d.id, i]));
+  const schoolNames = input.schools.map((s) => s.name);
+  const schoolIndex = new Map(input.schools.map((s, i) => [s.id, i]));
   const prefix = 'DEMO-STU-';
 
   return {
     idPrefix: prefix,
     divisions: divisionNames,
+    schools: schoolNames,
     rows: input.students.map((student) => [
       student.displayName,
       student.id.startsWith(prefix) ? student.id.slice(prefix.length) : student.id,
       divisionIndex.get(student.divisionId) ?? -1,
+      schoolIndex.get(student.schoolId) ?? -1,
     ]),
   };
 }

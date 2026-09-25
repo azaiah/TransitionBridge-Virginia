@@ -18,6 +18,7 @@ import {
   PACKED_REFERRAL_KEYS,
   PACKED_SERVICE_KEYS,
   PACKED_STUDENT_KEYS,
+  PACKED_AUTHORIZATION_KEYS,
 } from '../src/data/packed';
 
 const OUT_DIR = path.resolve(process.cwd(), 'src/data/generated');
@@ -75,6 +76,18 @@ function main(): void {
       vendorScorecards: bundle.vendorScorecards,
       reserveRows: bundle.reserveRows,
       homeSnapshots: bundle.homeSnapshots,
+      funding: bundle.funding,
+      escalations: bundle.escalations,
+    }),
+    // Funding authorizations ship packed, like the other record files.
+    authorizations: write(
+      'authorizations.json',
+      packRows(bundle.authorizations, PACKED_AUTHORIZATION_KEYS),
+    ),
+    auditHistory: write('audit-history.json', bundle.auditHistory),
+    employers: write('employers.json', {
+      employers: bundle.employers,
+      postings: bundle.postings,
     }),
     // Global search. Places ship with every page; students are fetched on first use.
     searchPlaces: write('search-places.json', buildPlacesIndex(bundle)),
@@ -162,6 +175,22 @@ function report(
     `    requirement    $${state.reserveRequirement.toLocaleString()}`,
     `    spent to date  $${state.reserveSpentToDate.toLocaleString()}`,
     `    projected      $${state.reserveProjectedYearEnd.toLocaleString()}`,
+    '',
+    '  Funding (federal fiscal year 2026, illustrative)',
+    ...bundle.funding.bySource.map(
+      (row) =>
+        `    ${row.source.padEnd(22)}${String(row.authorizations).padStart(6)} auths  $${row.dollarsUsed.toLocaleString()} of $${row.dollarsAuthorized.toLocaleString()}  near ${row.nearLimit}  over ${row.overAuthorized}`,
+    ),
+    `    DARS used vs reserve spent to date       ${bundle.funding.bySource.find((r) => r.source === 'DARS')?.dollarsUsed === state.reserveSpentToDate ? 'MATCH' : 'MISMATCH'}`,
+    '',
+    '  Early warnings (state)',
+    ...Object.entries(bundle.escalations.state).map(
+      ([stage, tiers]) => `    ${stage.padEnd(22)}14+ ${tiers[14]}  30+ ${tiers[30]}  90+ ${tiers[90]}`,
+    ),
+    `    dormant (open, stalled over a year)      ${bundle.escalations.dormant}`,
+    '',
+    `  Employers ${bundle.employers.length} · job postings ${bundle.postings.length}`,
+    `  Access log history ${bundle.auditHistory.length} entries (${bundle.auditHistory.filter((e) => e.action === 'NAME_VIEWED').length} names shown, ${bundle.auditHistory.filter((e) => ['EXPORT_REFUSED', 'RECORD_REFUSED', 'SERVICE_REFUSED'].includes(e.action)).length} refused)`,
     '',
     '  Alerts',
     ...bundle.alerts.map((a) => `    ${a.severity.padEnd(5)} ${a.message}`),

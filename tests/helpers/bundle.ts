@@ -6,6 +6,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import {
+  unpackAuthorizations,
   unpackReferrals,
   unpackServices,
   unpackStudents,
@@ -14,8 +15,10 @@ import {
 } from '../../src/data/packed';
 import type {
   Alert,
+  AuditEvent,
   CoverageCell,
   DemoDataBundle,
+  EmployerBundle,
   OutcomeRecord,
   SchoolDivision,
   School,
@@ -49,6 +52,12 @@ export function loadBundle(): DemoDataBundle {
     (referralId) => studentIdByReferral.get(referralId),
   );
 
+  const authorizations = unpackAuthorizations(
+    read<PackedTable>('authorizations.json'),
+    (referralId) => studentIdByReferral.get(referralId),
+  );
+  const employerBundle = read<EmployerBundle>('employers.json');
+
   return {
     ...geography,
     ...directory,
@@ -57,6 +66,10 @@ export function loadBundle(): DemoDataBundle {
     referrals,
     outcomes: read<OutcomeRecord[]>('outcomes.json'),
     serviceRecords,
+    authorizations,
+    employers: employerBundle.employers,
+    postings: employerBundle.postings,
+    auditHistory: read<AuditEvent[]>('audit-history.json'),
   } as unknown as DemoDataBundle;
 }
 

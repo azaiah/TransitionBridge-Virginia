@@ -15,7 +15,8 @@ whole point of the sequence is that each stage is verified before the next depen
    - `iep-partners-logo.png` → `public/brand/iep-lockup.png`
    - `iep-bridge.png` → `public/brand/iep-mark.png`
    - `iep-text.png` → `public/brand/iep-wordmark.png`
-   - **Do not copy the DataIsData icon into `public/`.** See `docs/10_BRAND_ASSETS.md`.
+   - The DataIsData icon goes in `public/brand/dataisdata-icon.png` for the "Powered by
+     DataIsData" badge only (decided September 2026). See `docs/10_BRAND_ASSETS.md` §5.
 3. Open the folder in Cursor.
 4. First message to Claude Code, before any prompt:
    > *"Read CLAUDE.md, then docs/00_START_HERE.md, then docs/11_USABILITY.md. Confirm you've

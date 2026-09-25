@@ -33,10 +33,6 @@ export function offerLeadHours(referralId: string): number {
   return Math.round(3 + unit ** 2 * 93);
 }
 
-function shift(iso: string, days: number): string {
-  return new Date(Date.parse(iso) + days * MS_PER_DAY).toISOString();
-}
-
 /** Provider ids and their coordinator persona ids mirror each other by construction. */
 export function vendorPersonaId(vendorId: string): string {
   return `DEMO-PER-VND-${vendorId.slice(-4)}`;
@@ -78,41 +74,61 @@ export function buildTimeline(referral: StoredReferral, student?: Student): Refe
   const byProvider = { role: 'vendor' as Role, personaId: provider };
 
   add('SUBMITTED', referral.submittedAt, bySchool, 'Referral submitted.');
+  // The latest moment before a provider could be offered the referral.
+  let readyMs = Date.parse(referral.submittedAt);
 
   if (referral.reviewedAt) {
     add('REVIEW_STARTED', referral.reviewedAt, byCounselor, 'Review started.');
 
-    // Consent is only part of the story where the student's consent postdates review.
-    const consentDate = student?.consentDate ?? null;
-    const consentStep =
-      consentDate !== null && Date.parse(consentDate) > Date.parse(referral.reviewedAt)
-        ? consentDate
+    // Consent belongs to this referral only if it arrived after review and before the
+    // referral moved on (offered to a provider) or ended. The student's consent date is
+    // shared across their referrals, so a date outside that window belongs to another one.
+    const offeredMs =
+      referral.assignedAt && referral.assignedVendorId
+        ? Date.parse(referral.assignedAt) - (offerLeadHours(referral.id) / 24) * MS_PER_DAY
         : null;
+    const endMs = referral.closedAt ? Date.parse(referral.closedAt) : referral.completedAt ? Date.parse(referral.completedAt) : null;
+    const upperMs = offeredMs ?? endMs ?? Number.POSITIVE_INFINITY;
+    const reviewedMs = Date.parse(referral.reviewedAt);
+    const consentDate = student?.consentDate ?? null;
+    const consentMs = consentDate === null ? null : Date.parse(consentDate);
+    const consentInWindow = consentMs !== null && consentMs > reviewedMs && consentMs < upperMs;
+    // Closed before the family's form came back: asked for, never received.
+    const closedWaitingOnConsent =
+      !consentInWindow && consentMs !== null && consentMs >= upperMs && offeredMs === null && referral.closedAt !== null;
 
-    if (consentStep !== null) {
+    if (referral.status === 'AWAITING_CONSENT') {
       add('CONSENT_REQUESTED', referral.reviewedAt, byCounselor, 'Consent requested from the family.');
-      if (referral.status !== 'AWAITING_CONSENT') {
-        add('CONSENT_RECEIVED', consentStep, bySchool, 'Signed consent received.');
-      }
+    } else if (consentInWindow && consentDate !== null) {
+      add('CONSENT_REQUESTED', referral.reviewedAt, byCounselor, 'Consent requested from the family.');
+      add('CONSENT_RECEIVED', consentDate, bySchool, 'Signed consent received.');
+    } else if (closedWaitingOnConsent) {
+      add('CONSENT_REQUESTED', referral.reviewedAt, byCounselor, 'Consent requested from the family.');
     }
 
-    const readyAt = consentStep ?? referral.reviewedAt;
-    const reachedReady = referral.status !== 'AWAITING_CONSENT' && referral.status !== 'UNDER_REVIEW';
+    const readyAt = consentInWindow && consentDate !== null ? consentDate : referral.reviewedAt;
+    const reachedReady =
+      referral.status !== 'AWAITING_CONSENT' && referral.status !== 'UNDER_REVIEW' && !closedWaitingOnConsent;
     if (reachedReady) {
       add('MARKED_READY', readyAt, byCounselor, 'Marked ready to assign.');
     }
+    readyMs = Date.parse(readyAt);
   }
 
   if (referral.assignedAt && referral.assignedVendorId) {
     const leadDays = offerLeadHours(referral.id) / 24;
-    const offeredAt = shift(referral.assignedAt, -leadDays);
+    const assignedMs = Date.parse(referral.assignedAt);
+    // Never offered before it was ready, and never accepted before it was offered.
+    const offeredMs = Math.min(assignedMs, Math.max(assignedMs - leadDays * MS_PER_DAY, readyMs));
+    const offeredAt = new Date(offeredMs).toISOString();
 
-    // A decline is the DECLINING provider's action, so it is attributed to them.
+    // A decline is the DECLINING provider's action, so it is attributed to them. It sits
+    // between being ready and the offer that was accepted.
     const decliner = referral.offeredVendorIds[0];
     if (referral.declineReason && decliner && decliner !== referral.assignedVendorId) {
       add(
         'VENDOR_DECLINED',
-        shift(offeredAt, -leadDays),
+        new Date(Math.max(readyMs, offeredMs - leadDays * MS_PER_DAY, (readyMs + offeredMs) / 2)).toISOString(),
         { role: 'vendor', personaId: vendorPersonaId(decliner) },
         `Provider declined: ${DECLINE_LABEL[referral.declineReason] ?? 'another reason'}.`,
       );

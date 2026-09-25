@@ -76,7 +76,7 @@ const SETTING_BY_ACTIVITY: Record<
  * Illustrative unit rates, shaped like a Pre-ETS fee schedule. Used only to derive
  * reserve spend from real service records — never displayed as a published DARS rate.
  */
-const UNIT_RATE: Record<PreEtsActivity, number> = {
+export const UNIT_RATE: Record<PreEtsActivity, number> = {
   work_based_learning: 780,
   workplace_readiness_training: 260,
   postsecondary_counseling: 240,

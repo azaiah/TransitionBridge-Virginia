@@ -52,22 +52,22 @@ washes, and hover states. **No text sits on it at any size.**
 4. **Backgrounds** — the artwork is designed for light. On `--tb-canvas` and `--tb-surface`
    it sits naturally. On `--tb-navy` (the nav rail), use the mono version (§3), never the
    full-color PNG.
-5. **Pairing with DataIsData** — the DataIsData mark appears **only** on internal documents
-   and invoices, never in the product UI or on any surface a Virginia agency sees. IEP
-   Partners is the vendor of record.
+5. **Pairing with DataIsData** — *Decided September 2026: the DataIsData credit is shown.*
+   The site carries a small "Powered by DataIsData" badge in the corner, and the demo
+   handouts credit DataIsData as the developer and presenter. IEP Partners remains the
+   vendor of record and the name on the product: the credit is always secondary — small,
+   in the corner or the closing band — and never replaces or sits beside the IEP Partners
+   lockup as an equal.
 
 ### The DataIsData mark
 Source: `C:\Users\azaia\Videos\Captures\Gedji\Logos\Gedji PNG.s\DataIsData\dataisdata icon.png`
 
-**Do not copy this file into `public/`.** If it lives in the deployed site's asset folder,
-someone will eventually find it, and the whole point of the vendor-of-record positioning is
-that IEP Partners is the name on the platform.
+It lives in `public/brand/dataisdata-icon.png` for the "Powered by DataIsData" badge only.
 
-Its correct homes are: internal build documentation, the SOW and invoices, and the branded
-HTML client-update deliverable for Rhonda and Michelle. Nowhere a Virginia agency looks.
-
-If a co-branded surface is ever genuinely wanted, that is a decision for Tony and a
-conversation with IEP Partners — not a default, and not something to slip into a footer.
+*Earlier rule, superseded September 2026:* the mark was kept off every surface a Virginia
+agency sees. The team has since chosen to show the credit on the site and the handouts.
+It stays secondary to IEP Partners everywhere, and it never names any tool, host, or
+technology — CLAUDE.md §1.1 still applies in full.
 
 ---
 

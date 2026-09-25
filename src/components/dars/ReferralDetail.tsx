@@ -12,10 +12,17 @@ import { PLAN_TYPE_LABELS, ACTIVITY_LABELS, DIPLOMA_TRACK_LABELS } from '@/data/
 import { getDivisionById, getVendorById } from '@/data';
 import { getStudentById } from '@/data/records';
 import { formatFullDate } from '@/lib/dates';
+import { StudentIdentity } from '@/components/identity/StudentIdentity';
+import { EscalationPill } from '@/components/record/EscalationPill';
+import { useViewer } from '@/context/useViewer';
+import { canRevealName } from '@/lib/access';
+import { escalationFor } from '@/lib/escalation';
+import { transitionIdFor } from '@/data/identity';
 
 export function ReferralDetail({ referral }: { referral: Referral }) {
   const [showAssign, setShowAssign] = useState(false);
-  
+  const { persona } = useViewer();
+
   const student = getStudentById(referral.studentId);
   const division = getDivisionById(referral.divisionId);
   const vendor = referral.assignedVendorId ? getVendorById(referral.assignedVendorId) : null;
@@ -23,6 +30,7 @@ export function ReferralDetail({ referral }: { referral: Referral }) {
   if (!student || !division) return null;
 
   const isUnassigned = ['NEW', 'UNDER_REVIEW', 'READY_TO_ASSIGN'].includes(referral.status);
+  const escalation = escalationFor(referral);
   
   const consentRequested = referral.events.find(e => e.type === 'CONSENT_REQUESTED');
   const consentReceived = referral.events.find(e => e.type === 'CONSENT_RECEIVED');
@@ -43,12 +51,26 @@ export function ReferralDetail({ referral }: { referral: Referral }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           {/* Wraps so the status badge moves under the name on narrow phones. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="text-h1 text-ink">{student.displayName}</h1>
+          <p className="meta-label">Referral {referral.id}</p>
+          <h1 className="sr-only">Referral for {transitionIdFor(student)}</h1>
+          <div className="mt-1 flex flex-wrap items-start gap-x-3 gap-y-2">
+            <StudentIdentity
+              student={student}
+              size="title"
+              canReveal={canRevealName('dars_counselor', persona?.scopeId === referral.darsDistrictId)}
+            />
             <StatusPill status={referral.status} />
+            {escalation && <EscalationPill escalation={escalation} withStage />}
           </div>
           <p className="mt-1 text-body text-ink-2">
-            ID: {student.id} · {division.name}
+            {division.name} ·{' '}
+            <Link
+              href={`/dars/students/detail/?id=${student.id}`}
+              className="font-medium text-orange-deep underline underline-offset-2"
+              data-coach="open-record"
+            >
+              Open the full transition record
+            </Link>
           </p>
         </div>
         

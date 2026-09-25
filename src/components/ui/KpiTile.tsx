@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowDown, ArrowUp, Minus, AlertTriangle } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, YAxis } from 'recharts';
@@ -15,6 +17,8 @@ export interface KpiTileProps {
   deltaLabel?: string;
   trend?: TrendPoint[];
   href: string;
+  /** Words on the link under the tile. Defaults to "View records". */
+  linkLabel?: string;
   alert?: boolean;
   /** Key into src/lib/definitions — adds the "?" panel to the tile. */
   explainKey?: string;
@@ -64,6 +68,7 @@ export function KpiTile({
   deltaLabel,
   trend,
   href,
+  linkLabel = 'View records',
   alert,
   explainKey,
   note,
@@ -100,7 +105,7 @@ export function KpiTile({
         href={href}
         aria-label={`${label}: ${
           typeof value === 'number' ? value.toLocaleString('en-US') : value
-        }${unit ? ` ${unit}` : ''} — view records`}
+        }${unit ? ` ${unit}` : ''} — ${linkLabel.toLowerCase()}`}
         className="mt-2 flex items-end justify-between gap-4"
       >
         <p className="text-kpi tabular text-ink">
@@ -134,7 +139,7 @@ export function KpiTile({
         href={href}
         className="mt-3 block text-caption text-ink-3 group-hover:text-orange-deep"
       >
-        View records<span aria-hidden="true"> →</span>
+        {linkLabel}<span aria-hidden="true"> →</span>
         <span className="sr-only"> for {label}</span>
       </Link>
     </div>

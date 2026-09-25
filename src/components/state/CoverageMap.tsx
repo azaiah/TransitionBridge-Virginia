@@ -87,16 +87,16 @@ export function CoverageMap() {
 
   const values = localityMetrics.map(m => getValue(m, activeLayer));
 
-  // Use a color scale based on the viz ramp
-  const colorScale = scaleQuantile<string>()
-    .domain(values)
-    .range([
-      'var(--tb-surface-sunken)',
-      'var(--tb-viz-2)',
-      'var(--tb-viz-3)',
-      'var(--tb-viz-4)',
-      'var(--tb-viz-1)',
-    ]);
+  // One hue, light to dark, so "more" always reads as darker. Service gaps use the brand
+  // orange, because a gap is the thing to act on; every other layer uses the bridge blue.
+  const RAMPS: Record<Layer, string[]> = {
+    volume: ['#E4EEF4', '#B7D0DF', '#7EA9C3', '#3F7BA1', '#0D4A72'],
+    coverage: ['#E4EEF4', '#B7D0DF', '#7EA9C3', '#3F7BA1', '#0D4A72'],
+    outcomes: ['#E4EEF4', '#B7D0DF', '#7EA9C3', '#3F7BA1', '#0D4A72'],
+    gap: ['#FBEADB', '#F4C29A', '#E8914F', '#CE5500', '#8A3800'],
+  };
+  const ramp = RAMPS[activeLayer];
+  const colorScale = scaleQuantile<string>().domain(values).range(ramp);
 
   const tableData = [...localityMetrics].sort((a, b) => getValue(b, activeLayer) - getValue(a, activeLayer));
 
@@ -131,8 +131,10 @@ export function CoverageMap() {
       >
         <div className="relative w-full overflow-hidden rounded-lg border border-line bg-canvas">
           <ComposableMap
-            projection="geoAlbersUsa"
-            projectionConfig={{ scale: 4000, center: [-79.5, 37.5] }}
+            // Mercator centred on Virginia. (The composite US projection ignores a centre,
+            // which left the state off the canvas and the map blank.)
+            projection="geoMercator"
+            projectionConfig={{ scale: 5000, center: [-79.45, 38.0] }}
             width={800}
             height={450}
             className="w-full h-auto"
@@ -186,6 +188,16 @@ export function CoverageMap() {
             </Geographies>
           </ComposableMap>
           
+          <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-control bg-surface/90 px-3 py-1.5 text-caption text-ink-2 shadow-sm">
+            <span>{activeLayer === 'outcomes' ? 'Lower' : 'Fewer'}</span>
+            <span className="flex" aria-hidden="true">
+              {ramp.map((c) => (
+                <span key={c} className="h-3 w-6" style={{ backgroundColor: c }} />
+              ))}
+            </span>
+            <span>{activeLayer === 'outcomes' ? 'Higher' : 'More'}</span>
+          </div>
+
           {tooltip && (
             <div
               className="pointer-events-none fixed z-50"

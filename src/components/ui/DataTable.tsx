@@ -2,8 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowDown, ArrowUp, Download, X } from 'lucide-react';
-import { Button } from './Button';
+import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import { GuardedDownload } from '@/components/privacy/GuardedDownload';
+import type { ExportKind } from '@/lib/access';
 import { DataTableCards } from './DataTableCards';
 import { EmptyState } from './EmptyState';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,8 @@ export interface DataTableColumn<T> {
   /** Plain-English column name shown to users. */
   render: (row: T) => ReactNode;
   sortValue?: (row: T) => string | number;
+  /** What the downloaded file says for this cell, when it differs from the sort key. */
+  csvValue?: (row: T) => string | number;
   numeric?: boolean;
   defaultVisible?: boolean;
 }
@@ -26,6 +29,11 @@ export interface DataTableProps<T> {
   /** Row-level treatment, e.g. the aging highlight on referrals waiting over 14 days. */
   rowClassName?: (row: T) => string | undefined;
   csvFilename?: string;
+  /**
+   * 'records' for one row per student or referral — downloads are restricted by role and
+   * never carry names. 'aggregate' (the default) for counts and totals.
+   */
+  exportKind?: ExportKind;
   /** Names the table for screen readers. Say what the rows are, e.g. "Referral queue". */
   caption?: string;
   emptyTitle?: string;
@@ -40,12 +48,14 @@ const ROW_HEIGHT = 40;
 const VIRTUAL_THRESHOLD = 100;
 const OVERSCAN = 8;
 
-function toCsv<T>(columns: DataTableColumn<T>[], rows: T[]): string {
-  const headers = columns.map((c) => c.header);
+function toCsv<T>(allColumns: DataTableColumn<T>[], rows: T[]): string {
+  // Buttons and links ("Actions") have no value to export, so they are left out.
+  const columns = allColumns.filter((c) => c.csvValue || c.sortValue);
+  const headers = columns.map((c) => `"${c.header.replace(/"/g, '""')}"`);
   const lines = rows.map((row) =>
     columns
       .map((c) => {
-        const v = c.sortValue ? c.sortValue(row) : '';
+        const v = c.csvValue ? c.csvValue(row) : c.sortValue ? c.sortValue(row) : '';
         const s = String(v).replace(/"/g, '""');
         return `"${s}"`;
       })
@@ -62,6 +72,7 @@ export function DataTable<T>({
   onRowClick,
   rowClassName,
   csvFilename = 'export.csv',
+  exportKind = 'aggregate',
   caption = 'Records',
   emptyTitle = 'Nothing here yet',
   emptyDescription = 'When records appear, they will show up in this table.',
@@ -119,7 +130,6 @@ export function DataTable<T>({
   }, [filtered, sortKey, sortDir, columns]);
 
   const virtualize = sorted.length > VIRTUAL_THRESHOLD;
-  const totalHeight = sorted.length * ROW_HEIGHT;
   const startIdx = virtualize
     ? Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
     : 0;
@@ -139,16 +149,6 @@ export function DataTable<T>({
     },
     [sortKey],
   );
-
-  function downloadCsv() {
-    const blob = new Blob([toCsv(visibleCols, sorted)], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = csvFilename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   /** Drop the search term but keep everything else about where the user is. */
   function clearFind() {
@@ -230,10 +230,12 @@ export function DataTable<T>({
               ))}
             </div>
           </details>
-          <Button variant="ghost" onClick={downloadCsv} className="!py-1.5 !px-3 text-caption">
-            <Download className="h-4 w-4" aria-hidden="true" />
-            CSV
-          </Button>
+          <GuardedDownload
+            kind={exportKind}
+            filename={csvFilename}
+            rowCount={sorted.length}
+            buildCsv={() => toCsv(visibleCols, sorted)}
+          />
         </div>
       </div>
 
@@ -296,8 +298,13 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody style={virtualize ? { height: totalHeight } : undefined}>
-            {virtualize && (
+          {/*
+            Virtualized with spacer rows above and below the window. The tbody itself is
+            never given a height: a table stretches its rows to fill one, which pushed every
+            row's text thousands of pixels down and left the table looking empty.
+          */}
+          <tbody>
+            {virtualize && offsetY > 0 && (
               <tr aria-hidden="true">
                 <td colSpan={visibleCols.length} style={{ height: offsetY, padding: 0, border: 0 }} />
               </tr>
@@ -341,6 +348,14 @@ export function DataTable<T>({
                 ))}
               </tr>
             ))}
+            {virtualize && endIdx < sorted.length && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={visibleCols.length}
+                  style={{ height: (sorted.length - endIdx) * ROW_HEIGHT, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

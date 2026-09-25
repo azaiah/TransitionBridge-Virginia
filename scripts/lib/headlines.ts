@@ -24,7 +24,7 @@ import {
   PRE_ETS_ACTIVITIES,
 } from '../../src/data/types';
 import { daysToFirstService, medianDays, round, toShares } from '../../src/lib/metrics';
-import { PERIODS, periodOf, periodRange } from './calendar';
+import { PERIODS, REFERENCE_DATE, periodOf, periodRange } from './calendar';
 import { serviceCost } from './services';
 
 const MS_PER_DAY = 86_400_000;
@@ -41,6 +41,11 @@ function openAt(referral: StoredReferral, t: number): boolean {
 function staleAt(referral: StoredReferral, t: number): boolean {
   if (!openAt(referral, t)) return false;
   if (referral.assignedAt && Date.parse(referral.assignedAt) <= t) return false;
+  // Waiting on the family's consent form is the school's step, not an unassigned referral —
+  // the same rule as isStale(), so this tile, the queue, and the early warnings agree.
+  if (referral.status === 'AWAITING_CONSENT' && referral.reviewedAt && Date.parse(referral.reviewedAt) <= t) {
+    return false;
+  }
   return (t - Date.parse(referral.submittedAt)) / MS_PER_DAY > 14;
 }
 
@@ -69,7 +74,8 @@ export function buildHeadlines(input: HeadlineInput): StateHeadline[] {
   const reserveTrend: TrendPoint[] = [];
 
   for (const period of PERIODS) {
-    const asOf = periodRange(period).end.getTime();
+    // The current quarter is measured at the demonstration's "now", like every other screen.
+    const asOf = Math.min(periodRange(period).end.getTime(), REFERENCE_DATE.getTime());
     activeTrend.push({ period, value: referrals.filter((r) => openAt(r, asOf)).length });
     staleTrend.push({ period, value: referrals.filter((r) => staleAt(r, asOf)).length });
 

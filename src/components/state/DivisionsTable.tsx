@@ -2,8 +2,8 @@
 
 import { DataTable } from '@/components/ui/DataTable';
 import { MetricLegend } from '@/components/ui/MetricLegend';
-import { getDivisionById } from '@/data';
-import { reportableRate } from '@/lib/metrics';
+import { demoData, getDivisionById } from '@/data';
+import { outcomeRates } from '@/lib/metrics';
 import type { DivisionMetrics } from '@/data/types';
 
 /** Column definitions users may not share a definition of, explained under the table. */
@@ -24,11 +24,14 @@ export function DivisionsTable({ metrics }: { metrics: DivisionMetrics[] }) {
       referralsSubmitted: m.referralsSubmitted,
       fillRate: m.referralsSubmitted > 0 ? m.referralsAssigned / m.referralsSubmitted : 0,
       medianDaysToAssignment: m.medianDaysToAssignment,
-      completionRate: m.referralsAssigned > 0 ? m.referralsCompleted / m.referralsAssigned : 0,
-      // Null rather than 0 when barely anything completed here this quarter — see
-      // reportableRate. A division with no completions has no employment rate to report.
-      employmentOutcomeRate: reportableRate(m.employmentOutcomeRate, m.referralsCompleted),
-      referralsCompleted: m.referralsCompleted,
+      ...(() => {
+        const o = outcomeRates(demoData.divisionMetrics.filter((x) => x.divisionId === m.divisionId));
+        return {
+          completionRate: o.completionRate ?? 0,
+          employmentOutcomeRate: o.employmentOutcomeRate,
+          referralsCompleted: o.completed,
+        };
+      })(),
       zeroReferralQuarter: m.zeroReferralQuarter,
     };
   });
@@ -75,17 +78,17 @@ export function DivisionsTable({ metrics }: { metrics: DivisionMetrics[] }) {
         },
         {
           key: 'completionRate',
-          header: 'Completion rate',
+          header: 'Completion rate (2 years)',
           render: (r) => `${Math.round(r.completionRate * 100)}%`,
           sortValue: (r) => r.completionRate,
           numeric: true,
         },
         {
           key: 'employmentOutcomeRate',
-          header: 'Employment rate',
+          header: 'Employment rate (2 years)',
           render: (r) =>
             r.employmentOutcomeRate === null ? (
-              <span className="text-ink-3" title={`Only ${r.referralsCompleted} completed cases — too few to report a rate`}>
+              <span className="text-ink-3" title={`Only ${r.referralsCompleted} completed cases in two years — too few to report a rate`}>
                 Too few cases
               </span>
             ) : (

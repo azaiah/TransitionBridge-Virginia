@@ -69,3 +69,17 @@ export function getReferralsForDivision(divisionId: string): StoredReferral[] {
 export function getReferralsForVendor(vendorId: string): StoredReferral[] {
   return referrals.filter((r) => r.assignedVendorId === vendorId);
 }
+
+const referralsByStudent = new Map<string, StoredReferral[]>();
+for (const referral of referrals) {
+  const list = referralsByStudent.get(referral.studentId) ?? [];
+  list.push(referral);
+  referralsByStudent.set(referral.studentId, list);
+}
+
+/** Every referral on a student's record, oldest first. */
+export function getReferralsForStudent(studentId: string): StoredReferral[] {
+  return [...(referralsByStudent.get(studentId) ?? [])].sort((a, b) =>
+    a.submittedAt.localeCompare(b.submittedAt),
+  );
+}

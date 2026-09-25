@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/Button';
 import { AlertRow } from '@/components/ui/AlertRow';
 import { PlusCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
+import { transitionIdFor } from '@/data/identity';
+import { EarlyWarningPanel } from '@/components/escalation/EarlyWarningPanel';
 
 export default function SchoolPage() {
   const roleCtx = useRoleOptional();
@@ -34,6 +36,7 @@ export default function SchoolPage() {
   const consentAlerts = home?.consentAlerts ?? [];
   const eligibleNotReferred = home?.eligibleNotReferred ?? [];
   const eligibleTotal = home?.eligibleNotReferredCount ?? 0;
+  const warnings = demoData.escalations?.byDivision.find((d) => d.divisionId === divisionId);
 
   return (
     <ProductLayout>
@@ -76,6 +79,17 @@ export default function SchoolPage() {
         </div>
       </section>
 
+      {warnings && (
+        <div className="mt-8">
+          <EarlyWarningPanel
+            counts={warnings.counts}
+            stages={['WAITING_ON_CONSENT', 'WAITING_FOR_PROVIDER', 'WAITING_TO_START']}
+            linkFor={() => '/school/referrals/?pastDue=true'}
+            description="Your division’s referrals that are past due. Consent forms are yours to chase; the others are followed up by DARS and the provider — you can see them here too."
+          />
+        </div>
+      )}
+
       <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
         <section>
           <div className="flex items-center justify-between mb-4">
@@ -91,7 +105,7 @@ export default function SchoolPage() {
                 return (
                   <AlertRow
                     key={alert.referralId}
-                    message={`Consent form outstanding for ${alert.studentName}`}
+                    message={`Consent form outstanding for ${transitionIdFor({ id: alert.studentId ?? '', schoolId: alert.schoolId ?? '' })}`}
                     severity="WARN"
                     ageLabel="Needs action"
                     ownerLabel="Coordinator"
@@ -138,7 +152,9 @@ export default function SchoolPage() {
               {eligibleNotReferred.map(student => (
                 <li key={student.studentId} className="flex items-center justify-between p-4 hover:bg-surface-sunken">
                   <div>
-                    <p className="text-label font-medium text-ink">{student.displayName}</p>
+                    <p className="font-mono text-label font-medium text-ink">
+                      {transitionIdFor({ id: student.studentId, schoolId: student.schoolId ?? '' })}
+                    </p>
                     <p className="text-caption text-ink-2">
                       Age {student.age} · {student.planType === 'IEP' ? 'IEP' : 'Section 504'}
                     </p>

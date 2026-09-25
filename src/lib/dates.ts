@@ -44,3 +44,17 @@ export function formatRelative(iso: string, nowMs: number = DEMO_NOW_MS): string
 export function formatDateWithRelative(iso: string, nowMs: number = DEMO_NOW_MS): string {
   return `${formatDate(iso)} · ${formatRelative(iso, nowMs)}`;
 }
+
+const DATE_TIME = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  // Virginia time, fixed, so every laptop shows the same clock for the same entry.
+  timeZone: 'America/New_York',
+});
+
+/** "June 30, 12:44 PM" — for log entries, where the time of day matters. Virginia time. */
+export function formatDateTime(iso: string): string {
+  return DATE_TIME.format(new Date(iso));
+}

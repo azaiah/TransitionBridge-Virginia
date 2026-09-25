@@ -42,6 +42,9 @@ every DARS district — no live participant data, no PII, no FERPA exposure.
 | [`docs/09_OPEN_ITEMS.md`](docs/09_OPEN_ITEMS.md) | What must be resolved before presenting |
 | [`docs/10_BRAND_ASSETS.md`](docs/10_BRAND_ASSETS.md) | Logo files, sampled colors, usage rules |
 | [`docs/11_USABILITY.md`](docs/11_USABILITY.md) | **Designing for non-technical users — read before every prompt** |
+| [`docs/12_IEP_FEEDBACK_UPGRADES.md`](docs/12_IEP_FEEDBACK_UPGRADES.md) | The IEP Partners feedback round: restricted identity, transition record, early warnings, funding, employers, audit log |
+| `docs/TransitionBridge-Virginia-Demo-Handout.pdf` | Four-page handout for demo audiences |
+| `docs/TransitionBridge-Virginia-Upgrades-Handout.pdf` | Four-page handout covering the feedback-round upgrades |
 | [`CLAUDE.md`](CLAUDE.md) | Standing rules for any AI agent working in this repo |
 
 **Repository:** https://github.com/azaiah/TransitionBridge-Virginia
@@ -50,17 +53,28 @@ every DARS district — no live participant data, no PII, no FERPA exposure.
 
 ## Status
 
-- [ ] Prompt 1 — Foundation, design system, data layer
-- [ ] Prompt 2 — Public site + role selector
-- [ ] Prompt 3 — Full statewide dataset + validation suite
-- [ ] Prompt 4 — State leadership command view
-- [ ] Prompt 5 — DARS counselor workspace
-- [ ] Prompt 6 — School coordinator workspace
-- [ ] Prompt 7 — Vendor workspace
-- [ ] Prompt 8 — Coverage map + report builder
-- [ ] Prompt 9 — Compliance, reporting, explain-this
-- [ ] Prompt 10 — Polish, audits, demo mode
-- [ ] Deployed to Netlify
+- [x] Prompt 1 — Foundation, design system, data layer
+- [x] Prompt 2 — Public site + role selector
+- [x] Prompt 3 — Full statewide dataset + validation suite
+- [x] Prompt 4 — State leadership command view
+- [x] Prompt 5 — DARS counselor workspace
+- [x] Prompt 6 — School coordinator workspace
+- [x] Prompt 7 — Vendor workspace
+- [x] Prompt 8 — Coverage map + report builder
+- [x] Prompt 9 — Compliance, reporting, explain-this
+- [x] Prompt 10 — Polish, audits, demo mode
+- [x] Deployed to Netlify
+- [x] IEP Partners feedback round (September 2026) — see `docs/12_IEP_FEEDBACK_UPGRADES.md`
+
+### Before every push
+
+```
+npm run generate   # rebuild the synthetic dataset (identical every time)
+npm run verify     # typecheck, lint, contrast, tests
+npm run assets     # brand images and icons
+npm run build      # static export to out/
+npm run sweep      # no stack names on any page
+```
 
 ---
 

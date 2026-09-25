@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ProductLayout } from '@/components/layout/ProductLayout';
 import { useRoleOptional } from '@/context/RoleContext';
 import {
@@ -13,8 +14,11 @@ import {
 import { KpiTile } from '@/components/ui/KpiTile';
 import { Button } from '@/components/ui/Button';
 import { AlertRow } from '@/components/ui/AlertRow';
-import { ListChecks } from 'lucide-react';
-import { ageDays, MIN_RATE_SAMPLE } from '@/lib/metrics';
+import { BriefcaseBusiness, Clock3, ListChecks, Users } from 'lucide-react';
+import { EarlyWarningPanel } from '@/components/escalation/EarlyWarningPanel';
+import { formatDollars } from '@/lib/fiscal';
+import { formatHours } from '@/lib/funding';
+import { ageDays, outcomeRates } from '@/lib/metrics';
 
 export default function DarsPage() {
   const roleCtx = useRoleOptional();
@@ -29,12 +33,19 @@ export default function DarsPage() {
   const districtMetrics = demoData.districtMetrics.find(
     (m) => m.darsDistrictId === districtId && m.period === CURRENT_PERIOD
   );
+  // Outcomes lag referrals by months, so the rate pools the last two program years.
+  const districtOutcomes = outcomeRates(
+    demoData.districtMetrics.filter((m) => m.darsDistrictId === districtId)
+  );
 
   // Caseload counts are precomputed at build time — this screen never loads referrals.
   const caseload = persona ? getCounselorHome(persona.id) : undefined;
   const awaitingTriage = caseload?.awaitingTriage ?? 0;
   const staleTriage = caseload?.unassignedOver14Days ?? 0;
   const activeStudents = caseload?.activeStudents ?? 0;
+
+  const warnings = demoData.escalations?.byDistrict.find((d) => d.darsDistrictId === districtId);
+  const funding = demoData.funding?.byDistrict.find((d) => d.darsDistrictId === districtId);
 
   const alerts = demoData.alerts.filter(
     (a) => a.scope === 'DISTRICT' && a.scopeId === districtId
@@ -86,6 +97,73 @@ export default function DarsPage() {
           />
         </div>
       </section>
+
+      {/* Secondary tools. The queue stays the one primary action, above. */}
+      <nav aria-label="Counselor tools" className="mt-6 flex flex-wrap gap-2" data-coach="counselor-tools">
+        <Button variant="secondary" href="/dars/students/" className="!py-2 !px-3 text-caption">
+          <Users className="h-4 w-4" aria-hidden="true" />
+          Students and transition records
+        </Button>
+        <Button variant="secondary" href="/dars/funding/" className="!py-2 !px-3 text-caption">
+          <Clock3 className="h-4 w-4" aria-hidden="true" />
+          Funding and hours
+        </Button>
+        <Button variant="secondary" href="/dars/jobs/" className="!py-2 !px-3 text-caption">
+          <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />
+          Job board
+        </Button>
+      </nav>
+
+      {warnings && (
+        <div className="mt-8">
+          <EarlyWarningPanel
+            counts={warnings.counts}
+            stages={['WAITING_FOR_PROVIDER', 'WAITING_ON_CONSENT', 'WAITING_TO_START']}
+            dormant={warnings.dormant}
+            linkFor={(tier, stage) => `/dars/queue/?tier=${tier}${stage ? `&stage=${stage}` : ''}`}
+            description="Referrals in this district that are past due, by how long they have waited. Each rung raises it one level: you, the district manager, then the state office."
+          />
+        </div>
+      )}
+
+      {funding && (
+        <section className="mt-8" aria-labelledby="funding-snapshot" data-coach="funding-snapshot">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <h2 id="funding-snapshot" className="text-h2 text-ink">
+              Funding and hours this fiscal year
+            </h2>
+            <Link href="/dars/funding/" className="text-label font-medium text-orange-deep underline underline-offset-2">
+              See every authorization
+            </Link>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <KpiTile
+              label="Near their authorized hours"
+              value={funding.nearLimit}
+              href="/dars/funding/?status=NEAR_LIMIT"
+              alert={funding.nearLimit > 0}
+              explainKey="authorizationNearLimit"
+              note="90% or more of the hours used"
+            />
+            <KpiTile
+              label="Over authorization"
+              value={funding.overAuthorized}
+              href="/dars/funding/?status=OVER"
+              alert={funding.overAuthorized > 0}
+              explainKey="authorizationOver"
+              note="New services are blocked until you extend"
+            />
+            <KpiTile
+              label="Hours remaining, all funders"
+              value={formatHours(Math.max(0, funding.hoursAuthorized - funding.hoursUsed)).replace(/ hrs?$/, '')}
+              unit="hrs"
+              href="/dars/funding/"
+              explainKey="hoursRemaining"
+              note={`${formatDollars(funding.dollarsAuthorized - funding.dollarsUsed)} of ${formatDollars(funding.dollarsAuthorized)} authorized left`}
+            />
+          </div>
+        </section>
+      )}
 
       {alerts.length > 0 && (
         <section className="mt-12">
@@ -141,24 +219,22 @@ export default function DarsPage() {
               explainKey="daysToAssignment"
             />
             {/*
-              A quarter usually holds only a handful of completed cases in one district, and
-              a rate built on one or two of them is noise dressed as a finding. Below the
-              minimum sample the tile shows no rate and says why, and points at the
-              statewide WIOA page where the trailing-four-quarter figures live.
+              A quarter holds only a handful of completed cases in one district, so the rate
+              is judged over every referral from the last two years — the same window as the
+              district comparison on the state screens, so the two always agree.
             */}
             <KpiTile
               label="Employment outcome rate"
               value={
-                districtMetrics.referralsCompleted >= MIN_RATE_SAMPLE &&
-                districtMetrics.employmentOutcomeRate !== null
-                  ? Math.round(districtMetrics.employmentOutcomeRate * 100)
+                districtOutcomes.employmentOutcomeRate !== null
+                  ? Math.round(districtOutcomes.employmentOutcomeRate * 100)
                   : '—'
               }
-              unit={districtMetrics.referralsCompleted >= MIN_RATE_SAMPLE ? '%' : undefined}
+              unit={districtOutcomes.employmentOutcomeRate !== null ? '%' : undefined}
               note={
-                districtMetrics.referralsCompleted >= MIN_RATE_SAMPLE
-                  ? `Across ${districtMetrics.referralsCompleted} completed cases this quarter`
-                  : `Too few completed cases this quarter (${districtMetrics.referralsCompleted}) to report a rate`
+                districtOutcomes.employmentOutcomeRate !== null
+                  ? `Across ${districtOutcomes.completed.toLocaleString()} completed cases in the last two years`
+                  : `Too few completed cases (${districtOutcomes.completed}) to report a rate`
               }
               href="/state/outcomes/"
               explainKey="employmentOutcomeRate"

@@ -144,3 +144,31 @@ export function round(value: number, decimals = 2): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
 }
+
+/**
+ * Completion and employment over every referral cohort in the dataset (two years), for one
+ * district or division. A single quarter's referrals have barely had time to finish, so a
+ * quarter-only completion rate reads as 0% everywhere; outcomes are judged over the longer
+ * window, like the WIOA indicators. Employment is weighted by completed cases.
+ */
+export function outcomeRates(
+  rows: { referralsAssigned: number; referralsCompleted: number; employmentOutcomeRate: number | null }[],
+): { completionRate: number | null; employmentOutcomeRate: number | null; completed: number } {
+  let assigned = 0;
+  let completed = 0;
+  let employed = 0;
+  let rated = 0;
+  for (const r of rows) {
+    assigned += r.referralsAssigned;
+    completed += r.referralsCompleted;
+    if (r.employmentOutcomeRate !== null && r.referralsCompleted > 0) {
+      employed += r.employmentOutcomeRate * r.referralsCompleted;
+      rated += r.referralsCompleted;
+    }
+  }
+  return {
+    completionRate: assigned === 0 ? null : completed / assigned,
+    employmentOutcomeRate: reportableRate(rated === 0 ? null : employed / rated, completed),
+    completed,
+  };
+}

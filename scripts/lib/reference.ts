@@ -431,5 +431,7 @@ export const STACK_WORD_BLOCKLIST: string[] = [
   'azure',
   'cloudflare',
   'github',
-  'dataisdata',
+  // 'dataisdata' was removed in September 2026: the team decided the "Powered by
+  // DataIsData" credit stays on the site and the handouts (docs/10_BRAND_ASSETS.md §5).
+  // DataIsData is the builder's name, not part of the stack — stack words stay blocked.
 ];

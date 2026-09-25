@@ -6,6 +6,14 @@ import type { DarsDistrict, Persona, SchoolDivision, Vendor } from '../../src/da
 import type { Rng } from './prng';
 import { personName } from './names';
 
+/**
+ * The featured sign-in accounts all work on the same students, so one student can be
+ * followed from every chair: the DARS counselor covers the Northern District, the school
+ * coordinator is in a Northern District division, and the provider serves that division.
+ */
+export const FEATURED_DIVISION_ID = 'fairfax-county-public-schools';
+export const FEATURED_VENDOR_ID = 'DEMO-VND-0003';
+
 export function buildPersonas(
   rng: Rng,
   districts: DarsDistrict[],
@@ -47,9 +55,11 @@ export function buildPersonas(
 
   // Every division gets a transition coordinator, so every referral on the system has a
   // real submitter rather than being attributed to someone in another division.
+  // Each index draws exactly one name, so moving the fixed name leaves the stream aligned.
+  const featuredDivision = Math.max(0, divisions.findIndex((d) => d.id === FEATURED_DIVISION_ID));
   divisions.forEach((division, i) => {
     let displayName: string;
-    if (i === 0) {
+    if (i === featuredDivision) {
       personName(rng);
       displayName = 'C. Smith';
     } else {
@@ -68,9 +78,10 @@ export function buildPersonas(
   // One coordinator per provider, so every vendor action in a timeline has a real actor.
   // The id mirrors the provider's id (DEMO-VND-0042 → DEMO-PER-VND-0042) so a timeline
   // can name the actor without carrying a lookup table into the browser.
+  const featuredVendor = Math.max(0, vendors.findIndex((v) => v.id === FEATURED_VENDOR_ID));
   vendors.forEach((vendor, i) => {
     let displayName: string;
-    if (i === 0) {
+    if (i === featuredVendor) {
       personName(rng);
       displayName = 'R. Miller';
     } else {
@@ -86,7 +97,19 @@ export function buildPersonas(
     });
   });
 
-  return personas;
+  // The first persona of each role is the one a portal opens as, so the featured accounts
+  // go first within their role. Ids are unchanged; only the order moves.
+  const featuredFirst = (p: Persona) =>
+    (p.role === 'school_coordinator' && p.scopeId === FEATURED_DIVISION_ID) ||
+    (p.role === 'vendor' && p.scopeId === FEATURED_VENDOR_ID)
+      ? 0
+      : 1;
+  const roleOrder = new Map(personas.map((p, i) => [p.id, i]));
+  return [...personas].sort(
+    (a, b) =>
+      (a.role === b.role ? featuredFirst(a) - featuredFirst(b) : 0) ||
+      roleOrder.get(a.id)! - roleOrder.get(b.id)!,
+  );
 }
 
 /** Vendor id → its coordinator persona id. Used to attribute timeline events. */

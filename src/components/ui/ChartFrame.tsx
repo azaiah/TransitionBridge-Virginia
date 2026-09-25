@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Download, Table2 } from 'lucide-react';
+import { Table2 } from 'lucide-react';
+import { GuardedDownload } from '@/components/privacy/GuardedDownload';
 import { Button } from './Button';
 import { ExplainThis } from './ExplainThis';
 import { cn } from '@/lib/utils';
@@ -37,18 +38,11 @@ export function ChartFrame({
   // A chart with nothing in it says so, rather than drawing empty axes.
   const isEmpty = tableRows.length === 0;
 
-  function downloadCsv() {
-    const lines = [
+  function buildCsv() {
+    return [
       tableHeaders.join(','),
       ...tableRows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')),
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = csvFilename;
-    a.click();
-    URL.revokeObjectURL(url);
+    ].join('\n');
   }
 
   return (
@@ -74,15 +68,14 @@ export function ChartFrame({
             <Table2 className="h-4 w-4" aria-hidden="true" />
             {showTable ? 'View as chart' : 'View as table'}
           </Button>
-          <Button
-            variant="ghost"
-            className="!py-1.5 !px-3 text-caption"
-            onClick={downloadCsv}
-            disabled={isEmpty}
-          >
-            <Download className="h-4 w-4" aria-hidden="true" />
-            CSV
-          </Button>
+          {!isEmpty && (
+            <GuardedDownload
+              kind="aggregate"
+              filename={csvFilename}
+              rowCount={tableRows.length}
+              buildCsv={buildCsv}
+            />
+          )}
         </div>
       </div>
 

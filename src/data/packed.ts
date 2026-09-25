@@ -12,6 +12,7 @@
  * next to the decoder, so the generator and the browser can never drift apart.
  */
 import type {
+  Authorization,
   PlanType,
   DiplomaTrack,
   ServiceRecord,
@@ -71,6 +72,22 @@ export const PACKED_SERVICE_KEYS = [
   'durationMinutes',
   'setting',
   'groupSession',
+] as const;
+
+/**
+ * Column order for a packed funding authorization. `id` is the row position and
+ * `studentId` comes from the referral, so neither is stored.
+ */
+export const PACKED_AUTHORIZATION_KEYS = [
+  'referralId',
+  'source',
+  'service',
+  'hoursAuthorized',
+  'minutesUsed',
+  'dollarsAuthorized',
+  'dollarsUsed',
+  'startDate',
+  'endDate',
 ] as const;
 
 /** On-disk shape: the column list, then one array per record. */
@@ -200,6 +217,31 @@ export function unpackServices(
       groupSession: row[column.groupSession] as boolean,
       // Always empty in the demonstration dataset, so it is not shipped.
       notes: null,
+    };
+  });
+}
+
+/** Rebuilds full authorizations from packed rows. */
+export function unpackAuthorizations(
+  table: PackedTable,
+  studentIdOf: (referralId: string) => string | undefined,
+): Authorization[] {
+  const column = columnIndex(table.keys, PACKED_AUTHORIZATION_KEYS);
+
+  return table.rows.map((row, i) => {
+    const referralId = row[column.referralId] as string;
+    return {
+      id: `DEMO-AUTH-${padded(i + 1, 6)}`,
+      referralId,
+      studentId: studentIdOf(referralId) ?? '',
+      source: row[column.source] as Authorization['source'],
+      service: row[column.service] as string,
+      hoursAuthorized: row[column.hoursAuthorized] as number,
+      minutesUsed: row[column.minutesUsed] as number,
+      dollarsAuthorized: row[column.dollarsAuthorized] as number,
+      dollarsUsed: row[column.dollarsUsed] as number,
+      startDate: row[column.startDate] as string,
+      endDate: row[column.endDate] as string,
     };
   });
 }

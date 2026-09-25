@@ -3,41 +3,45 @@
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, FileWarning, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { useRoleOptional } from '@/context/RoleContext';
-import { getPersonaById, demoData } from '@/data';
+import { useViewer } from '@/context/useViewer';
+import { demoData } from '@/data';
 import { getReferralsForDivision, students } from '@/data/records';
 import { DataTable } from '@/components/ui/DataTable';
 import { formatDate, formatFullDate } from '@/lib/dates';
+import { transitionIdFor } from '@/data/identity';
 
 export function ComplianceView() {
-  const roleCtx = useRoleOptional();
-  const personaId = roleCtx?.personaId;
-  const persona = personaId ? getPersonaById(personaId) : null;
-  
+  const { persona } = useViewer();
+  const personaId = persona?.id;
+
   const divisionId = persona?.scopeId ?? demoData.divisions[0].id;
   const allDivisionReferrals = getReferralsForDivision(divisionId);
-  
-  const myReferrals = personaId 
-    ? allDivisionReferrals.filter(r => r.submittedByPersonaId === personaId)
+
+  const myReferrals = personaId
+    ? allDivisionReferrals.filter((r) => r.submittedByPersonaId === personaId)
     : allDivisionReferrals;
 
   // 1. Consent outstanding (AWAITING_CONSENT status)
-  const awaitingConsent = myReferrals.filter(r => r.status === 'AWAITING_CONSENT');
-  
-  // 2. Documentation gaps (disabilityDocumented === false)
-  const myStudentIds = new Set(myReferrals.map(r => r.studentId));
-  const docGaps = students.filter(s => myStudentIds.has(s.id) && !s.disabilityDocumented);
-  
-  // 3. Approaching age-out (age 21+)
-  const agingOut = students.filter(s => myStudentIds.has(s.id) && s.age >= 21);
+  const awaitingConsent = myReferrals.filter((r) => r.status === 'AWAITING_CONSENT');
+
+  // Everyone the division knows about: students with a referral on file, and students on an
+  // IEP or 504 plan who do not have one yet.
+  const referredStudentIds = new Set(allDivisionReferrals.map((r) => r.studentId));
+  const divisionStudents = students.filter((s) => s.divisionId === divisionId);
+
+  // 2. Documentation gaps — a referral cannot go without the documentation behind the plan.
+  const docGaps = divisionStudents
+    .filter((s) => !s.disabilityDocumented)
+    .map((s) => ({ ...s, referred: referredStudentIds.has(s.id) }));
+
+  // 3. Approaching age-out — Pre-ETS ends at 22, so 20 and 21 is the last window.
+  const agingOut = divisionStudents
+    .filter((s) => s.age >= 20)
+    .map((s) => ({ ...s, referred: referredStudentIds.has(s.id) }));
 
   // 4. Eligible but not referred
-  const referredStudentIds = new Set(allDivisionReferrals.map(r => r.studentId));
-  const eligibleNotReferred = students.filter(s => 
-    s.divisionId === divisionId && 
-    s.age >= 14 && 
-    (s.planType === 'IEP' || s.planType === 'SECTION_504') && 
-    !referredStudentIds.has(s.id)
+  const eligibleNotReferred = divisionStudents.filter(
+    (s) => s.age >= 14 && (s.planType === 'IEP' || s.planType === 'SECTION_504') && !referredStudentIds.has(s.id),
   );
 
   return (
@@ -52,12 +56,18 @@ export function ComplianceView() {
         </div>
         
         <DataTable
+          exportKind="records"
+          csvFilename="consent-outstanding.csv"
           columns={[
             {
               key: 'student',
-              header: 'Student',
-              render: (r) => <span className="font-medium text-ink">{students.find(s => s.id === r.studentId)?.displayName}</span>,
-              sortValue: (r) => students.find(s => s.id === r.studentId)?.displayName ?? '',
+              header: 'Transition ID',
+              render: (r) => (
+                <Link href={`/school/students/detail/?id=${r.studentId}`} className="font-mono font-medium text-orange-deep hover:underline">
+                  {transitionIdFor({ id: r.studentId, schoolId: r.schoolId })}
+                </Link>
+              ),
+              sortValue: (r) => transitionIdFor({ id: r.studentId, schoolId: r.schoolId }),
             },
             {
               key: 'submitted',
@@ -102,12 +112,18 @@ export function ComplianceView() {
         </div>
         
         <DataTable
+          exportKind="records"
+          csvFilename="documentation-gaps.csv"
           columns={[
             {
               key: 'student',
-              header: 'Student',
-              render: (r) => <span className="font-medium text-ink">{r.displayName}</span>,
-              sortValue: (r) => r.displayName,
+              header: 'Transition ID',
+              render: (r) => (
+                <Link href={`/school/students/detail/?id=${r.id}`} className="font-mono font-medium text-orange-deep hover:underline">
+                  {transitionIdFor(r)}
+                </Link>
+              ),
+              sortValue: (r) => transitionIdFor(r),
             },
             {
               key: 'planType',
@@ -116,16 +132,22 @@ export function ComplianceView() {
               sortValue: (r) => r.planType,
             },
             {
+              key: 'referred',
+              header: 'Referral',
+              render: (r) => (r.referred ? 'On file' : 'Not yet — needs this first'),
+              sortValue: (r) => (r.referred ? 1 : 0),
+            },
+            {
               key: 'note',
               header: 'What is missing',
-              render: () => 'Disability documentation is not marked as on file.',
+              render: () => 'Documentation of the disability behind the plan.',
             },
           ]}
           rows={docGaps}
           rowKey={(r) => r.id}
           caption="Students missing disability documentation"
           emptyTitle="No documentation gaps"
-          emptyDescription="All active students have required disability documentation on file."
+          emptyDescription="Every student in the division has the documentation behind their plan on file."
         />
       </section>
 
@@ -135,16 +157,22 @@ export function ComplianceView() {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-info-bg text-info">
             <AlertCircle className="h-4 w-4" />
           </div>
-          <h2 className="text-h2 text-ink">Approaching age-out (21+)</h2>
+          <h2 className="text-h2 text-ink">Approaching age-out (20 and older)</h2>
         </div>
         
         <DataTable
+          exportKind="records"
+          csvFilename="approaching-age-out.csv"
           columns={[
             {
               key: 'student',
-              header: 'Student',
-              render: (r) => <span className="font-medium text-ink">{r.displayName}</span>,
-              sortValue: (r) => r.displayName,
+              header: 'Transition ID',
+              render: (r) => (
+                <Link href={`/school/students/detail/?id=${r.id}`} className="font-mono font-medium text-orange-deep hover:underline">
+                  {transitionIdFor(r)}
+                </Link>
+              ),
+              sortValue: (r) => transitionIdFor(r),
             },
             {
               key: 'age',
@@ -154,16 +182,29 @@ export function ComplianceView() {
               numeric: true,
             },
             {
+              key: 'referred',
+              header: 'Referral',
+              render: (r) =>
+                r.referred ? (
+                  'On file'
+                ) : (
+                  <Button variant="secondary" className="!py-1 !px-3 text-caption" href={`/school/refer/?studentId=${r.id}`}>
+                    Start referral
+                  </Button>
+                ),
+              sortValue: (r) => (r.referred ? 1 : 0),
+            },
+            {
               key: 'note',
               header: 'Why this matters',
-              render: () => 'Pre-ETS eligibility ends at 22. Confirm the transition plan is current.',
+              render: () => 'Pre-ETS ends at 22. Refer now, or confirm the transition plan is current.',
             },
           ]}
           rows={agingOut}
           rowKey={(r) => r.id}
           caption="Students approaching age-out"
           emptyTitle="No students aging out"
-          emptyDescription="No active students are currently 21 or older."
+          emptyDescription="No student in the division is 20 or older."
         />
       </section>
       
@@ -177,12 +218,18 @@ export function ComplianceView() {
         </div>
         
         <DataTable
+          exportKind="records"
+          csvFilename="eligible-not-referred.csv"
           columns={[
             {
               key: 'student',
-              header: 'Student',
-              render: (r) => <span className="font-medium text-ink">{r.displayName}</span>,
-              sortValue: (r) => r.displayName,
+              header: 'Transition ID',
+              render: (r) => (
+                <Link href={`/school/students/detail/?id=${r.id}`} className="font-mono font-medium text-orange-deep hover:underline">
+                  {transitionIdFor(r)}
+                </Link>
+              ),
+              sortValue: (r) => transitionIdFor(r),
             },
             {
               key: 'age',

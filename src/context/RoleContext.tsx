@@ -9,12 +9,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { Role } from '@/data/types';
 import { ROLES } from '@/data/types';
 import { demoData } from '@/data';
 import { getPersonaForRole, getRoleConfig } from '@/lib/marketing';
 import { startSession } from '@/lib/demo-session';
+import { roleForPath } from '@/lib/portal';
 
 type RoleContextValue = {
   role: Role | null;
@@ -35,12 +36,16 @@ function isRole(value: string | null): value is Role {
 export function RoleProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const portalRole = roleForPath(pathname);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const urlRole = searchParams.get('role');
   const urlPersona = searchParams.get('persona');
 
   const [role, setRoleState] = useState<Role | null>(() => {
+    // The portal you are in wins: /dars/ is always the counselor's view.
+    if (portalRole) return portalRole;
     if (isRole(urlRole)) return urlRole;
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem(STORAGE_KEY);
@@ -50,6 +55,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   });
 
   const [personaId, setPersonaId] = useState<string | null>(() => {
+    if (portalRole && urlRole !== portalRole) return getPersonaForRole(portalRole)?.id ?? null;
     if (urlPersona) return urlPersona;
     if (isRole(urlRole)) return getPersonaForRole(urlRole)?.id ?? null;
     return null;
@@ -57,12 +63,32 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   // Sync from URL when it changes (e.g. back/forward).
   useEffect(() => {
+    // Inside a portal the path decides (effect below); the URL only breaks a tie off-portal.
+    if (portalRole && urlRole !== portalRole) return;
     if (isRole(urlRole) && urlRole !== role) {
       setRoleState(urlRole);
       setPersonaId(urlPersona ?? getPersonaForRole(urlRole)?.id ?? null);
       sessionStorage.setItem(STORAGE_KEY, urlRole);
     }
-  }, [urlRole, urlPersona, role]);
+  }, [urlRole, urlPersona, role, portalRole]);
+
+  // Moving between portals with the side menu or a link changes whose view this is. Without
+  // this the header said "School coordinator" on the state screens, and a counselor page
+  // could try to read a school persona's scope as a district.
+  useEffect(() => {
+    if (!portalRole || portalRole === role) return;
+    setRoleState(portalRole);
+    const fromUrl =
+      urlPersona && demoData.personas.some((p) => p.id === urlPersona && p.role === portalRole)
+        ? urlPersona
+        : null;
+    setPersonaId(fromUrl ?? getPersonaForRole(portalRole)?.id ?? null);
+    try {
+      sessionStorage.setItem(STORAGE_KEY, portalRole);
+    } catch {
+      // Storage blocked: the header still updates for this page.
+    }
+  }, [portalRole, role, urlPersona]);
 
   const personaName = useMemo(() => {
     if (!role) return null;

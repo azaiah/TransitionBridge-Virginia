@@ -97,11 +97,14 @@ function buildCoordinatorHomes({ personas, referrals, students }: SnapshotInput)
       // Only the rows the panel actually renders travel to the browser.
       consentAlerts: awaitingConsent.slice(0, 3).map((r) => ({
         referralId: r.id,
+        studentId: r.studentId,
+        schoolId: r.schoolId,
         studentName: studentName.get(r.studentId) ?? 'Student',
       })),
       eligibleNotReferredCount: eligible.length,
       eligibleNotReferred: eligible.slice(0, 5).map((s) => ({
         studentId: s.id,
+        schoolId: s.schoolId,
         displayName: s.displayName,
         age: s.age,
         planType: s.planType,

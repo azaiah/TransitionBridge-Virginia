@@ -81,7 +81,7 @@ export const FLOW_DEFINITIONS: DefinitionMap = {
     definition:
       'The share of assigned referrals that reached completion — the planned services were delivered and the case was closed as served.',
     formula:
-      'Referrals completed, divided by referrals assigned to a provider. Both counts are measured on the referrals SUBMITTED in the quarter shown.',
+      'Referrals completed, divided by referrals assigned to a provider. The district and division comparisons count every referral submitted in the last two years; a single quarter\'s referrals have not had time to finish.',
     whyItMatters:
       'Assignment is a promise. Completion is whether the promise was kept. Read the most recent quarter carefully: a referral submitted eight weeks ago has not had time to finish, so a young cohort shows a low rate by definition, not by failure.',
   },
@@ -91,7 +91,7 @@ export const FLOW_DEFINITIONS: DefinitionMap = {
     definition:
       'The share of completed referrals that ended in competitive integrated employment — a real job, in the community, at the going wage.',
     formula:
-      'Completed referrals with a competitive integrated employment outcome, divided by all completed referrals. Shown only where at least 10 cases have completed — below that, a single placement would swing the rate by tens of points, so no rate is reported.',
+      'Completed referrals with a competitive integrated employment outcome, divided by all completed referrals — over the last two years in the district and division comparisons. Shown only where at least 10 cases have completed — below that, a single placement would swing the rate by tens of points, so no rate is reported.',
     citation: PRE_ETS_SOURCE,
     citationId: PRE_ETS_SOURCE_ID,
     whyItMatters:

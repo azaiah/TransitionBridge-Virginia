@@ -9,7 +9,8 @@ import {
 } from '@/data';
 import { KpiTile } from '@/components/ui/KpiTile';
 import { Button } from '@/components/ui/Button';
-import { Inbox, Users, Activity, BarChart2 } from 'lucide-react';
+import { Inbox, Users, Activity, BarChart2, BriefcaseBusiness } from 'lucide-react';
+import { EarlyWarningPanel } from '@/components/escalation/EarlyWarningPanel';
 
 export function VendorDashboard() {
   const roleCtx = useRoleOptional();
@@ -30,6 +31,8 @@ export function VendorDashboard() {
   const openOffers = home?.openOffers ?? 0;
   const activeStudents = home?.activeStudents ?? 0;
   const servicesLogged = scorecard.servicesLogged;
+  const warnings = demoData.escalations?.byVendor.find((v) => v.vendorId === vendorId);
+  const hours = demoData.funding?.byVendor.find((v) => v.vendorId === vendorId);
 
 
   return (
@@ -78,8 +81,44 @@ export function VendorDashboard() {
         />
       </div>
 
+      {hours && (
+        <section aria-labelledby="hours-title" data-coach="hours">
+          <h2 id="hours-title" className="text-h2 text-ink">
+            Authorized hours
+          </h2>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <KpiTile
+              label="Students near their authorized hours"
+              value={hours.nearLimit}
+              href="/vendor/roster/"
+              alert={hours.nearLimit > 0}
+              explainKey="authorizationNearLimit"
+              note="Plan the last sessions, or ask the counselor to extend"
+            />
+            <KpiTile
+              label="Students over authorization"
+              value={hours.overAuthorized}
+              href="/vendor/roster/"
+              alert={hours.overAuthorized > 0}
+              explainKey="authorizationOver"
+              note="New sessions are refused until DARS extends"
+            />
+          </div>
+        </section>
+      )}
+
+      {warnings && (
+        <EarlyWarningPanel
+          title="Students waiting for a first session"
+          counts={warnings.counts}
+          stages={['WAITING_TO_START']}
+          linkFor={() => '/vendor/roster/'}
+          description="Students you accepted who have no service logged yet. At 30 days the district manager is told; at 90, the state office."
+        />
+      )}
+
       {/* Secondary shortcuts. The inbox is not repeated here — it is the button above. */}
-      <nav aria-label="Provider tools" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <nav aria-label="Provider tools" className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <Button variant="secondary" href="/vendor/log/" className="h-24 flex-col justify-center gap-2">
           <Activity className="h-6 w-6 text-orange-deep" aria-hidden="true" />
           <span>Log services</span>
@@ -91,6 +130,10 @@ export function VendorDashboard() {
         <Button variant="secondary" href="/vendor/scorecard/" className="h-24 flex-col justify-center gap-2">
           <BarChart2 className="h-6 w-6 text-orange-deep" aria-hidden="true" />
           <span>View scorecard</span>
+        </Button>
+        <Button variant="secondary" href="/vendor/jobs/" className="h-24 flex-col justify-center gap-2" data-coach="jobs">
+          <BriefcaseBusiness className="h-6 w-6 text-orange-deep" aria-hidden="true" />
+          <span>Job board</span>
         </Button>
       </nav>
     </div>

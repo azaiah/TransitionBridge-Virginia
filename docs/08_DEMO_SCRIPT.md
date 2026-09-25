@@ -14,6 +14,17 @@ own vocabulary, already solved on screen.
 - Offline copy ready as a fallback.
 - **Do not open with your company.** Open with their problem.
 - Verify the two flagged research items (`02_RESEARCH_AND_SOURCES.md` §C1 and §C5) first.
+- **Reset the demonstration.** Sign in as state leadership → *Access and audit log* →
+  *Clear demonstration activity*. Your earlier clicks are removed; the month of seeded
+  history stays, and whatever you do in the room appears at the top, marked "This
+  demonstration".
+- **Know the default accounts.** C. Smith (Fairfax Public Schools), A. Davis (DARS Northern
+  District), and R. Miller (Massanutten Employment Pathways Center) share students, so you can
+  open the same student from the school, the counselor, and the provider portal.
+- **Decide about the guided cards.** Each portal shows its tour (and "What's new") the first
+  time a screen opens in a browser. Click through every portal once beforehand if you want
+  a clean screen, or leave them unseen if you want the room to see the cards. The **?**
+  button replays any screen's tour on demand.
 
 ---
 
@@ -123,6 +134,34 @@ Rehearse the transitions until they're seamless.
 
 ---
 
+## Beat 5b — What IEP Partners asked for (3 minutes)
+
+Use this beat when IEP Partners is in the room, or when privacy and funding will be asked
+about. It adds three minutes — shorten Beat 6 or Beat 7 to hold the twelve. Full detail:
+`12_IEP_FEEDBACK_UPGRADES.md` and the upgrades handout in `docs/`.
+
+As the **DARS counselor**, open a student from *Students and transition records*:
+> "Every student is an ID, not a name. When the counselor needs the name, she asks for it,
+> gives a reason — and that's written down." *(Show name → pick a reason.)*
+
+Scroll the record once, top to bottom, without stopping:
+> "One record: the path from need to outcome, the same readiness profile for every student,
+> the documents with who can open them, who's paying, and matching jobs nearby."
+
+Switch role → **provider**, *Log services*, a student with few hours left, a long session:
+> "The provider can't log past what was approved. It's stopped here, not found in an audit
+> six months later."
+
+Switch role → **state leadership**, *Access and audit log*:
+> "And everything we just did is already here: the name that was shown and why, the
+> session that was refused."
+
+Close on *Early warnings*:
+> "A referral that stalls is flagged at fourteen days, raised at thirty, and reaches this
+> office at ninety. Nobody gets forgotten quietly."
+
+---
+
 ## Beat 6 — The insight they can't get anywhere else (60 seconds)
 
 `/state` activity mix.
@@ -207,7 +246,7 @@ Stop talking. Let them ask.
 
 **"Who built this?"**
 > "IEP Partners — a Virginia small business, woman-owned, service-disabled veteran-owned,
-> registered federal contractor — with our technology partner."
+> registered federal contractor — with our technology partner, DataIsData."
 > **Nothing further.** No stack, no tools, no infrastructure. If pressed: "enterprise cloud
 > infrastructure, and I'd rather show you what it does than bore you with how it's built."
 

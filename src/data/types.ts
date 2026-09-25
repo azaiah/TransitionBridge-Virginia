@@ -459,6 +459,185 @@ export interface Alert {
 }
 
 /* ==========================================================================
+   6b. Transition record layer — funding, escalation, employers
+   Added for the IEP Partners feedback round (docs/12_IEP_FEEDBACK_UPGRADES.md).
+   ========================================================================== */
+
+/**
+ * Who pays for a service. This is not a billing system — it answers "who is paying for
+ * this?" and "how much of what was authorized is left?", which is what stops over-billing.
+ */
+export type FundingSource =
+  | 'DARS'
+  | 'DMAS'
+  | 'VIRGINIA_WORKS'
+  | 'SCHOOL_DIVISION'
+  | 'GRANT'
+  | 'LOCAL_WORKFORCE_BOARD'
+  | 'OTHER_AGENCY';
+
+export const FUNDING_SOURCES: readonly FundingSource[] = [
+  'DARS',
+  'DMAS',
+  'VIRGINIA_WORKS',
+  'SCHOOL_DIVISION',
+  'GRANT',
+  'LOCAL_WORKFORCE_BOARD',
+  'OTHER_AGENCY',
+] as const;
+
+export const FUNDING_SOURCE_LABELS: Record<FundingSource, string> = {
+  DARS: 'DARS — Pre-ETS',
+  DMAS: 'DMAS',
+  VIRGINIA_WORKS: 'Virginia Works',
+  SCHOOL_DIVISION: 'School division',
+  GRANT: 'Grant',
+  LOCAL_WORKFORCE_BOARD: 'Local workforce board',
+  OTHER_AGENCY: 'Other agency',
+};
+
+/**
+ * One authorization: a funder has agreed to pay for up to `hoursAuthorized` of a service
+ * for one student during the current federal fiscal year. Used hours and dollars come from
+ * the service records themselves (for DARS Pre-ETS) — never typed in twice.
+ */
+export interface Authorization {
+  id: string; // 'DEMO-AUTH-000123'
+  referralId: string;
+  studentId: string;
+  source: FundingSource;
+  /** What the money pays for, in plain words. */
+  service: string;
+  hoursAuthorized: number;
+  minutesUsed: number;
+  dollarsAuthorized: number;
+  dollarsUsed: number;
+  startDate: string; // date only
+  endDate: string; // date only
+}
+
+/** Storage form. id is the row position; studentId comes from the referral. */
+export type StoredAuthorization = Omit<Authorization, 'id' | 'studentId'>;
+
+export interface FundingTotals {
+  authorizations: number;
+  hoursAuthorized: number;
+  hoursUsed: number;
+  dollarsAuthorized: number;
+  dollarsUsed: number;
+  /** Authorizations at 90% or more of their hours. */
+  nearLimit: number;
+  /** Authorizations whose logged hours already exceed what was authorized. */
+  overAuthorized: number;
+}
+
+export interface FundingSummary {
+  fiscalYearLabel: string;
+  asOf: string;
+  totals: FundingTotals;
+  bySource: (FundingTotals & { source: FundingSource })[];
+  byDistrict: (FundingTotals & { darsDistrictId: string })[];
+  /** Per provider, so the provider dashboard can flag students near their limit. */
+  byVendor: (FundingTotals & { vendorId: string })[];
+  /** District × source, so the state screen can cross-tab without loading records. */
+  byDistrictSource: (FundingTotals & { darsDistrictId: string; source: FundingSource })[];
+}
+
+/** Stage × rung counts for the early warning system. See src/lib/escalation.ts. */
+export type EscalationStageCounts = Record<
+  'WAITING_FOR_PROVIDER' | 'WAITING_ON_CONSENT' | 'WAITING_TO_START',
+  Record<14 | 30 | 90, number>
+>;
+
+export interface EscalationSummary {
+  state: EscalationStageCounts;
+  /** Open referrals stalled for more than a year — a close-or-reopen decision. */
+  dormant: number;
+  byDistrict: { darsDistrictId: string; counts: EscalationStageCounts; dormant: number }[];
+  byVendor: { vendorId: string; counts: EscalationStageCounts }[];
+  byDivision: { divisionId: string; counts: EscalationStageCounts }[];
+}
+
+/** A synthetic employer partner. Names are invented and checked against the blocklist. */
+export interface Employer {
+  id: string; // 'DEMO-EMP-0012'
+  name: string;
+  industry: CareerField;
+  localityFips: string;
+  darsDistrictId: string;
+  /** Has hired through Pre-ETS before — the "repeat business customer" WIOA measures. */
+  repeatPartner: boolean;
+}
+
+export type CareerField =
+  | 'HEALTHCARE'
+  | 'INFORMATION_TECHNOLOGY'
+  | 'SKILLED_TRADES'
+  | 'HOSPITALITY'
+  | 'RETAIL'
+  | 'LOGISTICS'
+  | 'EDUCATION'
+  | 'AUTOMOTIVE'
+  | 'AGRICULTURE'
+  | 'OFFICE_ADMIN';
+
+export const CAREER_FIELDS: readonly CareerField[] = [
+  'HEALTHCARE',
+  'INFORMATION_TECHNOLOGY',
+  'SKILLED_TRADES',
+  'HOSPITALITY',
+  'RETAIL',
+  'LOGISTICS',
+  'EDUCATION',
+  'AUTOMOTIVE',
+  'AGRICULTURE',
+  'OFFICE_ADMIN',
+] as const;
+
+export const CAREER_FIELD_LABELS: Record<CareerField, string> = {
+  HEALTHCARE: 'Health care',
+  INFORMATION_TECHNOLOGY: 'Information technology',
+  SKILLED_TRADES: 'Skilled trades',
+  HOSPITALITY: 'Hospitality and food service',
+  RETAIL: 'Retail and customer service',
+  LOGISTICS: 'Warehouse and logistics',
+  EDUCATION: 'Early childhood and education',
+  AUTOMOTIVE: 'Automotive',
+  AGRICULTURE: 'Agriculture and landscaping',
+  OFFICE_ADMIN: 'Office and administration',
+};
+
+export type JobType = 'PAID_INTERNSHIP' | 'PART_TIME' | 'FULL_TIME' | 'WORK_BASED_LEARNING_SITE';
+
+export const JOB_TYPE_LABELS: Record<JobType, string> = {
+  PAID_INTERNSHIP: 'Paid internship',
+  PART_TIME: 'Part-time job',
+  FULL_TIME: 'Full-time job',
+  WORK_BASED_LEARNING_SITE: 'Work-based learning site',
+};
+
+export interface JobPosting {
+  id: string; // 'DEMO-JOB-0031'
+  employerId: string;
+  title: string;
+  field: CareerField;
+  type: JobType;
+  hourlyWage: number;
+  hoursPerWeek: number;
+  openings: number;
+  postedAt: string; // date only
+  /** Accommodations the employer has said they already offer. Plain words. */
+  accommodations: string[];
+  /** On a bus line or reachable without a car — matters where transportation is a barrier. */
+  transitAccessible: boolean;
+}
+
+export interface EmployerBundle {
+  employers: Employer[];
+  postings: JobPosting[];
+}
+
+/* ==========================================================================
    7. Provenance — how verified and illustrative stay separate
    ========================================================================== */
 
@@ -510,6 +689,8 @@ export interface RecordsBundle {
   referrals: StoredReferral[];
   serviceRecords: ServiceRecord[];
   outcomes: OutcomeRecord[];
+  /** Funding authorizations for the current federal fiscal year. */
+  authorizations: Authorization[];
 }
 
 /** Everything precomputed at build time, so no view aggregates at render. */
@@ -530,13 +711,21 @@ export interface AggregatesBundle {
   reserveRows: ReserveRow[];
   /** Everything the three operational dashboards draw, so they load no record files. */
   homeSnapshots: HomeSnapshots;
+  /** Who is paying, statewide and by district, for the current federal fiscal year. */
+  funding: FundingSummary;
+  /** The 14 / 30 / 90-day early warning counts. */
+  escalations: EscalationSummary;
 }
 
 export interface DemoDataBundle
   extends GeographyBundle,
     DirectoryBundle,
     RecordsBundle,
-    AggregatesBundle {}
+    AggregatesBundle,
+    EmployerBundle {
+  /** The month of access-log activity before the demonstration. Newest first. */
+  auditHistory: AuditEvent[];
+}
 
 /* ==========================================================================
    9. Derived, presentation-facing shapes
@@ -614,11 +803,12 @@ export interface CoordinatorHome {
   awaitingConsent: number;
   stuckOver14Days: number;
   /** Only the rows the "Action required" panel shows. */
-  consentAlerts: { referralId: string; studentName: string }[];
+  consentAlerts: { referralId: string; studentId: string; schoolId: string; studentName: string }[];
   eligibleNotReferredCount: number;
   /** Only the rows the "Eligible, not referred" panel shows. */
   eligibleNotReferred: {
     studentId: string;
+    schoolId: string;
     displayName: string;
     age: number;
     planType: PlanType;
@@ -657,4 +847,40 @@ export interface ReserveRow {
   darsDistrictId: string;
   spend: number;
   spendByActivity: Record<PreEtsActivity, number>;
+}
+
+/* ==========================================================================
+   Access and audit log — who did what. See src/lib/session-store.ts (actions taken during
+   a demonstration) and scripts/lib/audit-history.ts (the month before it).
+   ========================================================================== */
+
+export type AuditAction =
+  | 'NAME_VIEWED'
+  | 'DOCUMENT_VIEWED'
+  | 'DOCUMENT_ADDED'
+  | 'DOCUMENT_DOWNLOADED'
+  | 'DOCUMENT_REFUSED'
+  | 'EXPORT_DOWNLOADED'
+  | 'EXPORT_REFUSED'
+  | 'RECORD_REFUSED'
+  | 'RECORD_OPENED'
+  | 'AUTHORIZATION_EXTENDED'
+  | 'SERVICE_LOGGED'
+  | 'SERVICE_REFUSED'
+  | 'JOB_SHARED';
+
+export interface AuditEvent {
+  id: string;
+  /** When it happened: wall-clock time in a demonstration, the demo calendar in history. */
+  at: string;
+  actorRole: Role;
+  actorPersonaId: string;
+  action: AuditAction;
+  /** Internal student id, when the action concerns one student. */
+  studentId?: string;
+  /** What the person saw on screen: a Transition ID, a document name, a file name. */
+  subject: string;
+  /** The reason given, where one was asked for. */
+  reason?: string;
+  detail?: string;
 }

@@ -84,19 +84,33 @@ describe('groupResults', () => {
 });
 
 describe('expandStudentIndex', () => {
-  it('rebuilds ids, division names, and links from the compact payload', () => {
+  it('labels students by Transition ID and keeps the name only as a hidden alias', () => {
     const [entry] = expandStudentIndex({
       idPrefix: 'DEMO-STU-',
       divisions: ['Portsmouth City Public Schools'],
-      rows: [['Avery Brooks', '000412', 0]],
+      schools: ['Portsmouth Churchland High School'],
+      rows: [['Avery Brooks', '000412', 0, 0]],
     });
 
     expect(entry).toEqual({
       kind: 'student',
       id: 'DEMO-STU-000412',
-      label: 'Avery Brooks',
-      sub: 'DEMO-STU-000412 · Portsmouth City Public Schools',
+      label: 'PC-VA-000412',
+      sub: 'Portsmouth City Public Schools',
       href: '/dars/students/detail/?id=DEMO-STU-000412',
+      alias: 'Avery Brooks',
     });
+  });
+
+  it('finds a student by name only through the alias, below an exact id', () => {
+    const [entry] = expandStudentIndex({
+      idPrefix: 'DEMO-STU-',
+      divisions: ['Portsmouth City Public Schools'],
+      schools: ['Portsmouth Churchland High School'],
+      rows: [['Avery Brooks', '000412', 0, 0]],
+    });
+    expect(scoreEntry(entry!, 'avery')).toBe(45);
+    expect(scoreEntry({ ...entry!, alias: undefined }, 'avery')).toBe(0);
+    expect(scoreEntry(entry!, 'PC-VA-000412')).toBe(90);
   });
 });

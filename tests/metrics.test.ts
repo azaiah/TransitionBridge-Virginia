@@ -20,6 +20,7 @@ import {
   reserveUtilization,
   round,
   toShares,
+  outcomeRates,
 } from '../src/lib/metrics';
 import { buildTimeline, offerLeadHours } from '../src/lib/timeline';
 import { DEMO_NOW_MS } from '../src/lib/demo-clock';
@@ -306,5 +307,23 @@ describe('buildTimeline', () => {
       }),
     );
     expect(new Set(events.map((e) => e.id)).size).toBe(events.length);
+  });
+});
+
+describe('outcomeRates — completion and employment over the full window', () => {
+  it('pools every cohort and weights employment by completed cases', () => {
+    const o = outcomeRates([
+      { referralsAssigned: 100, referralsCompleted: 30, employmentOutcomeRate: 0.4 }, // 12 employed
+      { referralsAssigned: 100, referralsCompleted: 10, employmentOutcomeRate: 0.2 }, // 2 employed
+      { referralsAssigned: 50, referralsCompleted: 0, employmentOutcomeRate: null },
+    ]);
+    expect(o.completed).toBe(40);
+    expect(o.completionRate).toBeCloseTo(40 / 250, 10); // 0.16
+    expect(o.employmentOutcomeRate).toBeCloseTo(14 / 40, 10); // 0.35
+  });
+
+  it('withholds a rate when there is nothing to divide, or too few cases', () => {
+    expect(outcomeRates([]).completionRate).toBeNull();
+    expect(outcomeRates([{ referralsAssigned: 10, referralsCompleted: 2, employmentOutcomeRate: 1 }]).employmentOutcomeRate).toBeNull();
   });
 });

@@ -47,6 +47,19 @@ presentation to DARS.
 
 ---
 
+## 3b. From the IEP Partners feedback round (September 2026)
+
+Built and documented in `12_IEP_FEEDBACK_UPGRADES.md`. Four questions to confirm with Michelle:
+
+| # | Question | Where it shows |
+|---|---|---|
+| 3b.1 | **W-9 or W-4?** Her note is ambiguous. A student in paid work experience normally completes a W-4 (and an I-9); a W-9 is for contractors. Labeled "Payroll document (W-9 / W-4)" until confirmed. | Secure documents on each record |
+| 3b.2 | **Escalation recipients** — "district manager" at 30 days and "state office" at 90. Confirm the titles DARS uses. | Early warnings everywhere |
+| 3b.3 | **Partner funders** — DARS, DMAS, Virginia Works, school division, grant, local workforce board, other agency. Confirm the list and names. | Funding screens and records |
+| 3b.4 | **Reasons for showing a name** — a starting list; confirm with DARS privacy staff. | "Show name" dialog |
+
+---
+
 ## 4. Deliberately deferred
 
 Not in this build. Don't let scope creep pull them in.
@@ -55,6 +68,8 @@ Not in this build. Don't let scope creep pull them in.
 - Integration or import from any DARS system → scoped during the pilot
 - DBHDS as a second tenant → after DARS. One agency, one story. Two agencies in one demo dilutes both.
 - Employer and student/family portals → phase 2. Four roles is already a lot to hold in a 12-minute demo.
+  (Employers now appear through the job board and employer matches — September 2026 — with
+  no employer login and no student names shown to them.)
 - Mobile app → the responsive web views are sufficient and a native app invites questions we don't want yet.
 - CJIS / FedRAMP claims → **never improvise these.** Compliance review precedes real data. That's the whole answer.
 

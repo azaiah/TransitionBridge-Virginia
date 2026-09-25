@@ -8,6 +8,7 @@ import { FLOW_DEFINITIONS } from './flow';
 import { FUNDING_DEFINITIONS } from './funding';
 import { NETWORK_DEFINITIONS } from './network';
 import { WIOA_DEFINITIONS } from './wioa';
+import { TRANSITION_DEFINITIONS } from './transition';
 import type { DefinitionMap, MetricDefinition } from './types';
 
 export type { MetricDefinition } from './types';
@@ -19,6 +20,7 @@ export const DEFINITIONS: DefinitionMap = {
   ...NETWORK_DEFINITIONS,
   ...FUNDING_DEFINITIONS,
   ...WIOA_DEFINITIONS,
+  ...TRANSITION_DEFINITIONS,
 };
 
 export type DefinitionKey = keyof typeof DEFINITIONS;

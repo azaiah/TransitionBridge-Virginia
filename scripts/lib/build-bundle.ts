@@ -25,6 +25,11 @@ import { buildServiceRecords } from './services';
 import { StudentPool, buildDivisionProfiles } from './students';
 import { buildVendorNetwork } from './vendors';
 import { buildVendorStats } from './vendor-stats';
+import { buildAuthorizations, summarizeFunding } from './funding';
+import { summarizeEscalations } from './escalations';
+import { buildEmployers } from './employers';
+import { buildAuditHistory } from './audit-history';
+import { buildUnreferredStudents } from './school-rosters';
 
 /** Change this and the entire dataset changes — reproducibly. */
 export const SEED = 20260630;
@@ -74,7 +79,19 @@ export function buildBundle(seed = SEED): DemoDataBundle {
   // Every timestamp drops to hour resolution before anything is measured, so aggregates
   // and on-screen derivations always agree. See round-time.ts for why.
   const referrals = floorAllTimestamps(built.referrals);
-  const students = floorAllTimestamps(pool.students);
+  const referredStudents = floorAllTimestamps(pool.students);
+  // Students the schools know about who have no referral yet — appended, own stream.
+  const students = [
+    ...referredStudents,
+    ...buildUnreferredStudents({
+      seed,
+      divisions: geo.divisions,
+      schoolsByDivision,
+      profiles,
+      referrals,
+      existingCount: referredStudents.length,
+    }),
+  ];
   const serviceRecords = floorAllTimestamps(rawServices);
   const studentById = new Map(students.map((s) => [s.id, s]));
 
@@ -153,6 +170,45 @@ export function buildBundle(seed = SEED): DemoDataBundle {
     students,
   });
 
+  // The IEP Partners feedback layer: funding authorizations, early warnings, employers.
+  // Each draws from its own seeded stream, so none of it shifts the data above.
+  const storedAuthorizations = buildAuthorizations(seed, referrals, serviceRecords);
+  const districtByReferral = new Map(referrals.map((r) => [r.id, r.darsDistrictId]));
+  const studentByReferral = new Map(referrals.map((r) => [r.id, r.studentId]));
+  const authorizations = storedAuthorizations.map((a, i) => ({
+    ...a,
+    id: `DEMO-AUTH-${String(i + 1).padStart(6, '0')}`,
+    studentId: studentByReferral.get(a.referralId) ?? '',
+  }));
+  const funding = summarizeFunding(
+    storedAuthorizations,
+    districtByReferral,
+    geo.districts.map((d) => d.id),
+    new Map(referrals.map((r) => [r.id, r.assignedVendorId])),
+    network.vendors.map((v) => v.id),
+  );
+  const escalations = summarizeEscalations(
+    referrals,
+    geo.districts.map((d) => d.id),
+    geo.divisions.map((d) => d.id),
+    network.vendors.map((v) => v.id),
+  );
+  const employerBundle = buildEmployers(seed, geo.localities);
+
+  // The month of access-log activity before the demonstration, built from the records above.
+  const auditHistory = buildAuditHistory({
+    seed,
+    students,
+    referrals,
+    serviceRecords,
+    outcomes,
+    schools: geo.schools,
+    personas,
+    authorizations,
+    employers: employerBundle.employers,
+    postings: employerBundle.postings,
+  });
+
   return {
     // Fixed, not the wall clock — see src/lib/demo-clock.ts.
     generatedAt: isoOf(REFERENCE_DATE),
@@ -179,5 +235,11 @@ export function buildBundle(seed = SEED): DemoDataBundle {
     vendorScorecards,
     reserveRows,
     homeSnapshots,
+    authorizations,
+    funding,
+    escalations,
+    employers: employerBundle.employers,
+    postings: employerBundle.postings,
+    auditHistory,
   };
 }

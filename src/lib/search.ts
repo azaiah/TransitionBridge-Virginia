@@ -1,3 +1,5 @@
+import { buildTransitionId } from './identity';
+
 /**
  * Global search — ranking rules, kept as pure functions so they can be unit tested.
  *
@@ -16,27 +18,41 @@ export interface SearchEntry {
   /** The line underneath: where it sits, so two similar names are tellable apart. */
   sub: string;
   href: string;
+  /**
+   * Searchable but never displayed — a student's name. Search can find a student by name
+   * only for viewers allowed to know it (see GlobalSearch); the result still shows the
+   * Transition ID, so a name never appears in a results list.
+   */
+  alias?: string;
 }
 
 /** How the student slice of the index is stored on disk. See scripts/lib/search-index.ts. */
 export interface StudentIndexPayload {
   idPrefix: string;
   divisions: string[];
-  /** [display name, id without the shared prefix, index into `divisions`] */
-  rows: [string, string, number][];
+  /** High school names, so the Transition ID can be rebuilt in the browser. */
+  schools?: string[];
+  /** [display name, id without the shared prefix, index into `divisions`, index into `schools`] */
+  rows: [string, string, number, number?][];
 }
 
-/** Rebuild full search entries from the compact student payload. */
+/**
+ * Rebuild full search entries from the compact student payload. A student is labelled by
+ * Transition ID; the name travels only as a hidden alias, which GlobalSearch removes for
+ * anyone not allowed to search by it.
+ */
 export function expandStudentIndex(payload: StudentIndexPayload): SearchEntry[] {
-  return payload.rows.map(([name, idSuffix, divisionIdx]) => {
+  return payload.rows.map(([name, idSuffix, divisionIdx, schoolIdx]) => {
     const id = `${payload.idPrefix}${idSuffix}`;
     const division = payload.divisions[divisionIdx] ?? 'Unknown division';
+    const school = schoolIdx !== undefined ? payload.schools?.[schoolIdx] : undefined;
     return {
       kind: 'student',
       id,
-      label: name,
-      sub: `${id} · ${division}`,
+      label: buildTransitionId(school ?? 'High School', id),
+      sub: division,
       href: `/dars/students/detail/?id=${id}`,
+      alias: name,
     };
   });
 }
@@ -68,6 +84,12 @@ export function scoreEntry(entry: SearchEntry, query: string): number {
 
   if (id === q) return 100;
   if (label === q) return 90;
+  // A name typed by someone allowed to search by it: good, but below an exact id or label.
+  if (entry.alias) {
+    const alias = normalize(entry.alias);
+    if (alias === q) return 80;
+    if (alias.startsWith(q) || alias.includes(` ${q}`)) return 45;
+  }
   if (label.startsWith(q)) return 70;
   if (label.includes(` ${q}`)) return 50; // start of any word in the name
   if (label.includes(q)) return 30;

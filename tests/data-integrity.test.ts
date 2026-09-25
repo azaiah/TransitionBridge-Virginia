@@ -13,6 +13,7 @@ import { buildTimeline } from '../src/lib/timeline';
 import { REAL_NAME_BLOCKLIST } from '../scripts/lib/reference';
 import {
   packRows,
+  PACKED_AUTHORIZATION_KEYS,
   PACKED_REFERRAL_KEYS,
   PACKED_SERVICE_KEYS,
   PACKED_STUDENT_KEYS,
@@ -23,6 +24,16 @@ import {
   PRE_ETS_ACTIVITIES,
 } from '../src/data/types';
 import { appRoutes, loadBundle } from './helpers/bundle';
+import { buildTransitionId, looksLikeTransitionId } from '../src/lib/identity';
+import { sumAuthorizations } from '../src/lib/funding';
+import { recordScope } from '../src/lib/access';
+import { DEMO_NOW_MS } from '../src/lib/demo-clock';
+import {
+  ESCALATION_TIERS,
+  STALL_STAGES,
+  countEscalations,
+  tierTotal,
+} from '../src/lib/escalation';
 
 const bundle = loadBundle();
 const periods = bundle.periods;
@@ -181,6 +192,7 @@ describe('rule 7 — no name collides with a real organisation or official', () 
       ...bundle.vendors.map((v) => v.name),
       ...bundle.personas.map((p) => p.displayName),
       ...bundle.outcomes.map((o) => o.employerNameSynthetic ?? ''),
+      ...bundle.employers.map((e) => e.name),
     ];
 
     for (const blocked of REAL_NAME_BLOCKLIST) {
@@ -202,6 +214,9 @@ describe('rule 8 — every generated id is marked as demonstration data', () => 
       ...bundle.personas.map((p) => p.id),
       ...bundle.schools.map((s) => s.id),
       ...bundle.alerts.map((a) => a.id),
+      ...bundle.authorizations.map((a) => a.id),
+      ...bundle.employers.map((e) => e.id),
+      ...bundle.postings.map((p) => p.id),
     ];
     const offender = ids.find((id) => !id.startsWith('DEMO-'));
     expect(offender).toBeUndefined();
@@ -232,6 +247,13 @@ describe('rule 9 — the same seed produces an identical dataset', () => {
     expect(of(packRows(rebuilt.serviceRecords, PACKED_SERVICE_KEYS))).toBe(
       committed('services.json'),
     );
+    expect(of(packRows(rebuilt.authorizations, PACKED_AUTHORIZATION_KEYS))).toBe(
+      committed('authorizations.json'),
+    );
+    expect(of({ employers: rebuilt.employers, postings: rebuilt.postings })).toBe(
+      committed('employers.json'),
+    );
+    expect(of(rebuilt.auditHistory)).toBe(committed('audit-history.json'));
   });
 });
 
@@ -378,3 +400,217 @@ function matchingRecordCount(linkTo: string): number {
 
   return 0;
 }
+
+/* ==========================================================================
+   The IEP Partners feedback layer (docs/12_IEP_FEEDBACK_UPGRADES.md):
+   Transition IDs, funding, early warnings, employers.
+   ========================================================================== */
+
+describe('Transition IDs', () => {
+  it('gives every student a unique, well-formed Transition ID', () => {
+    const schoolName = new Map(bundle.schools.map((s) => [s.id, s.name]));
+    const ids = bundle.students.map((s) => buildTransitionId(schoolName.get(s.schoolId) ?? '', s.id));
+    expect(ids.every(looksLikeTransitionId)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('funding reconciles', () => {
+  const funding = bundle.funding;
+  const measures = ['authorizations', 'dollarsAuthorized', 'dollarsUsed', 'nearLimit', 'overAuthorized'] as const;
+
+  it('adds up by funder and by district to the statewide totals', () => {
+    for (const measure of measures) {
+      const bySource = funding.bySource.reduce((n, s) => n + s[measure], 0);
+      const byDistrict = funding.byDistrict.reduce((n, d) => n + d[measure], 0);
+      // Dollars are rounded per group, so allow a dollar of rounding per group.
+      const slack = measure.startsWith('dollars') ? funding.byDistrict.length : 0;
+      expect(Math.abs(bySource - funding.totals[measure]), `bySource ${measure}`).toBeLessThanOrEqual(slack);
+      expect(Math.abs(byDistrict - funding.totals[measure]), `byDistrict ${measure}`).toBeLessThanOrEqual(slack);
+    }
+  });
+
+  it('matches the shipped authorizations', () => {
+    const totals = sumAuthorizations(bundle.authorizations);
+    expect(totals.authorizations).toBe(funding.totals.authorizations);
+    expect(totals.nearLimit).toBe(funding.totals.nearLimit);
+    expect(totals.overAuthorized).toBe(funding.totals.overAuthorized);
+    expect(Math.abs(totals.dollarsUsed - funding.totals.dollarsUsed)).toBeLessThanOrEqual(1);
+  });
+
+  it('ties DARS dollars used to the 15% reserve spent to date', () => {
+    const dars = funding.bySource.find((s) => s.source === 'DARS')!;
+    const reserve = bundle.stateMetrics.find((s) => s.period === bundle.currentPeriod)!;
+    expect(dars.dollarsUsed).toBe(reserve.reserveSpentToDate);
+  });
+
+  it('attaches every authorization to a real referral and student', () => {
+    const referralIds = new Set(bundle.referrals.map((r) => r.id));
+    const orphan = bundle.authorizations.find((a) => !referralIds.has(a.referralId) || a.studentId === '');
+    expect(orphan).toBeUndefined();
+  });
+
+  it('never authorizes a negative amount', () => {
+    const bad = bundle.authorizations.find(
+      (a) => a.hoursAuthorized <= 0 || a.minutesUsed < 0 || a.dollarsAuthorized <= 0 || a.dollarsUsed < 0,
+    );
+    expect(bad).toBeUndefined();
+  });
+});
+
+describe('early warnings agree with the referrals', () => {
+  it('matches a row-by-row recount statewide', () => {
+    expect(bundle.escalations.state).toEqual(countEscalations(bundle.referrals));
+  });
+
+  it('adds up by district to the statewide count', () => {
+    for (const stage of STALL_STAGES) {
+      for (const tier of ESCALATION_TIERS) {
+        const summed = bundle.escalations.byDistrict.reduce((n, d) => n + d.counts[stage][tier], 0);
+        expect(summed, `${stage} ${tier}`).toBe(bundle.escalations.state[stage][tier]);
+      }
+    }
+  });
+
+  it('makes "waiting for a provider" equal "unassigned more than 14 days", exactly', () => {
+    const current = bundle.stateMetrics.find((s) => s.period === bundle.currentPeriod)!;
+    const provider = bundle.escalations.state.WAITING_FOR_PROVIDER;
+    expect(provider[14] + provider[30] + provider[90]).toBe(current.totals.unassignedOver14Days);
+    for (const d of bundle.escalations.byDistrict) {
+      const live = bundle.referrals.filter((r) => r.darsDistrictId === d.darsDistrictId && isStale(r)).length;
+      const c = d.counts.WAITING_FOR_PROVIDER;
+      expect(c[14] + c[30] + c[90], d.darsDistrictId).toBe(live);
+    }
+  });
+
+  it('has something on every rung, so the demonstration has a story to tell', () => {
+    for (const tier of ESCALATION_TIERS) {
+      expect(tierTotal(bundle.escalations.state, tier), `tier ${tier}`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('employers and postings', () => {
+  it('attaches every posting to a real employer in a real district', () => {
+    const employerIds = new Set(bundle.employers.map((e) => e.id));
+    const districtIds = new Set(bundle.districts.map((d) => d.id));
+    expect(bundle.postings.find((p) => !employerIds.has(p.employerId))).toBeUndefined();
+    expect(bundle.employers.find((e) => !districtIds.has(e.darsDistrictId))).toBeUndefined();
+  });
+
+  it('gives every district employer partners to match against', () => {
+    for (const district of bundle.districts) {
+      expect(bundle.employers.some((e) => e.darsDistrictId === district.id), district.id).toBe(true);
+    }
+  });
+
+  it('never posts a wage below the Virginia minimum wage', () => {
+    // Illustrative wages must still be plausible: Virginia's minimum wage is $12.77 an
+    // hour from January 1, 2026. Raise this floor if the state minimum changes.
+    expect(Math.min(...bundle.postings.map((p) => p.hourlyWage))).toBeGreaterThanOrEqual(12.77);
+  });
+});
+
+describe('headline numbers tie to the lists behind them', () => {
+  it('makes the statewide "unassigned past 14 days" headline equal the district totals', () => {
+    const current = bundle.stateMetrics.find((s) => s.period === bundle.currentPeriod)!;
+    const headline = bundle.headlines.find((h) => h.period === bundle.currentPeriod)!;
+    expect(headline.unassignedOver14Days).toBe(current.totals.unassignedOver14Days);
+    expect(headline.unassignedOver14Days).toBe(bundle.referrals.filter((r) => isStale(r)).length);
+  });
+});
+
+describe('students known to a school but not yet referred', () => {
+  const referredIds = new Set(bundle.referrals.map((r) => r.studentId));
+  const unreferred = bundle.students.filter((s) => !referredIds.has(s.id));
+
+  it('gives every school division at least two, so school work lists are never empty', () => {
+    for (const division of bundle.divisions) {
+      const count = unreferred.filter((s) => s.divisionId === division.id).length;
+      expect(count, division.id).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('keeps them consistent with having no referral', () => {
+    for (const s of unreferred) {
+      expect(s.consentOnFile, s.id).toBe(false);
+      expect(s.preEtsStartDate, s.id).toBeNull();
+      expect(s.age, s.id).toBeGreaterThanOrEqual(14);
+      expect(s.age, s.id).toBeLessThanOrEqual(21);
+    }
+  });
+
+  it('includes some approaching age-out and some missing documentation', () => {
+    expect(unreferred.some((s) => s.age >= 20)).toBe(true);
+    expect(unreferred.some((s) => !s.disabilityDocumented)).toBe(true);
+  });
+});
+
+describe('access log history obeys the access rules', () => {
+  const history = bundle.auditHistory;
+  const studentById = new Map(bundle.students.map((s) => [s.id, s]));
+  const personaById = new Map(bundle.personas.map((p) => [p.id, p]));
+  const referralsByStudent = new Map<string, typeof bundle.referrals>();
+  for (const r of bundle.referrals) {
+    const list = referralsByStudent.get(r.studentId) ?? [];
+    list.push(r);
+    referralsByStudent.set(r.studentId, list);
+  }
+  const scopeOf = (e: (typeof history)[number]) =>
+    recordScope(
+      e.actorRole,
+      personaById.get(e.actorPersonaId),
+      studentById.get(e.studentId!)!,
+      referralsByStudent.get(e.studentId!) ?? [],
+    ).inScope;
+
+  it('has enough entries to demonstrate with', () => {
+    expect(history.length).toBeGreaterThanOrEqual(150);
+  });
+
+  it('uses unique demonstration ids, real people, and real students', () => {
+    expect(new Set(history.map((e) => e.id)).size).toBe(history.length);
+    for (const e of history) {
+      expect(e.id.startsWith('DEMO-'), e.id).toBe(true);
+      const persona = personaById.get(e.actorPersonaId);
+      expect(persona, e.id).toBeDefined();
+      expect(persona!.role, e.id).toBe(e.actorRole);
+      if (e.studentId) expect(studentById.has(e.studentId), e.id).toBe(true);
+    }
+  });
+
+  it('never dates an entry after the demonstration date', () => {
+    for (const e of history) {
+      const at = Date.parse(e.at);
+      expect(Number.isNaN(at), e.id).toBe(false);
+      expect(at, e.id).toBeLessThanOrEqual(DEMO_NOW_MS);
+    }
+  });
+
+  it('shows names only to school and DARS staff, in scope, with a reason', () => {
+    const names = history.filter((e) => e.action === 'NAME_VIEWED');
+    expect(names.length).toBeGreaterThan(0);
+    for (const e of names) {
+      expect(['school_coordinator', 'dars_counselor'], e.id).toContain(e.actorRole);
+      expect(e.reason, e.id).toBeTruthy();
+      expect(scopeOf(e), e.id).toBe(true);
+    }
+  });
+
+  it('opens records only in scope, and refuses only out of scope', () => {
+    for (const e of history) {
+      if (!e.studentId) continue;
+      if (e.action === 'RECORD_REFUSED') expect(scopeOf(e), e.id).toBe(false);
+      if (e.action === 'RECORD_OPENED') expect(scopeOf(e), e.id).toBe(true);
+    }
+  });
+
+  it('refuses student-list downloads and over-limit services only for providers', () => {
+    for (const e of history) {
+      if (e.action === 'EXPORT_REFUSED' || e.action === 'SERVICE_REFUSED' || e.action === 'SERVICE_LOGGED') {
+        expect(e.actorRole, e.id).toBe('vendor');
+      }
+      if (e.action === 'AUTHORIZATION_EXTENDED') expect(e.actorRole, e.id).toBe('dars_counselor');
+    }
+  });
+});
